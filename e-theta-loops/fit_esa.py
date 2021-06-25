@@ -194,6 +194,7 @@ def load_data(compare_file):
     spec_file = open(compare_file, 'r')
     sE = []
     sI = []
+    sErr = []
     started = False
     for line in spec_file:
         if not started:
@@ -203,10 +204,16 @@ def load_data(compare_file):
         args = line.split()
         sE.append(float(args[0]))
         sI.append(float(args[1]))
+        if len(args) > 2:
+            sErr.append(float(args[2]))
+    spec_file.close()
     sE = np.array(sE)
     sI = np.array(sI)
-    spec_file.close()
-    return sE, sI
+    if len(sErr) > 0:
+        sErr = np.array(sErr)
+    else:
+        sErr = None
+    return sE, sI, sErr
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -218,7 +225,7 @@ if __name__ == '__main__':
 
     filename = './2eV'
 
-    sE, sI = load_data(filename)
+    sE, sI, err = load_data(filename)
     fit_esa(sI, sE, filename)
 
     input("Enter to exit")

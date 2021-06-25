@@ -1,4 +1,5 @@
 import numpy as np
+import argparse        # Parsing command line arguments
 import matplotlib      # Main plotting
 #Qt5Agg is the backend
 matplotlib.use('Qt5Agg')
@@ -9,8 +10,14 @@ import fit_esa as esa
 
 
 if __name__ == "__main__" :
-    spec = Spec('./test.spec')
-    spec.process_data()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--input", help="input file")
+    parser.add_argument("-d", "--data", help="data comparison file")
+    args = parser.parse_args()
+
+    spec = Spec(args.input)
+    spec.process_data(d_phi=0.5)
     print(spec)
 
     fig, ax = plt.subplots()
@@ -53,10 +60,15 @@ if __name__ == "__main__" :
             print("No fits at angle {}".format(T))
 
     if len(X) > 0:
-        ax.scatter(X,Y,c='y',s=2)
+        ax.scatter(X,Y,c='y',s=4,label="Simulation")
         ax.errorbar(X,Y,yerr=S, c='y',fmt='none',capsize=2)
 
+    if args.data is not None:
+        theta, energy, err = esa.load_data(args.data)
+        ax.scatter(theta,energy,c='r',s=4,label="Data")
+        if err is not None:
+            ax.errorbar(theta,energy,yerr=err, c='r',fmt='none',capsize=2)
+    ax.legend()
     fig.show()
     
-
     input("Enter to exit")
