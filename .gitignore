@@ -32,7 +32,16 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+
+# Data files for SAFARI
 *.data
+
+# SAFARI executables
+XYZ*
+Sea-Safari*
+
+# Settings for VS Code
+.vscode/*
 
 # Installer logs
 pip-log.txt
