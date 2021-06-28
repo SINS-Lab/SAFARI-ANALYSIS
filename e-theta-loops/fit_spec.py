@@ -18,20 +18,21 @@ if __name__ == "__main__" :
 
     spec = Spec(args.input)
     spec.process_data(d_phi=0.5)
-    print(spec)
-
-    fig, ax = plt.subplots()
 
     e_max = spec.e_range[1]
     e_min = spec.e_range[0]
     t_min = spec.t_range[0]
     t_max = spec.t_range[1]
+    p_min = spec.p_range[0]
+    p_max = spec.p_range[1]
 
     del_e = e_max-e_min
     del_t = t_max-t_min
+    del_p = p_max-p_min
 
     img = spec.img
 
+    fig, ax = plt.subplots()
     im = ax.imshow(img, interpolation="bicubic", extent=(t_min, t_max, e_max, e_min))
     ax.invert_yaxis()
     ax.set_aspect(aspect=del_t/del_e)
@@ -47,7 +48,8 @@ if __name__ == "__main__" :
     for i in range(img.shape[1]):
         slyce = img[:,i]
         params = esa.fit_esa(slyce, axis,actualname=" fit", plot=False,min_h = max(np.max(slyce)/10,10))
-        T = load_spec.interp(i, img.shape[1], t_min, t_max)
+        # +0.5 to shift the point to the middle of the bin
+        T = load_spec.interp(i+0.5, img.shape[1], t_min, t_max)
         if params is not None and len(params > 2):
             for j in range(2, len(params), 3):
                 E = params[j+2]
@@ -70,5 +72,15 @@ if __name__ == "__main__" :
             ax.errorbar(theta,energy,yerr=err, c='r',fmt='none',capsize=2)
     ax.legend()
     fig.show()
+
+    fig2, ax2 = plt.subplots()
+    im2 = ax2.imshow(spec.theta_phi, interpolation="bicubic", extent=(p_min, p_max, t_max, t_min))
+    ax2.invert_yaxis()
+    ax2.set_aspect(aspect=del_p/del_t)
+    fig2.colorbar(im2, ax=ax2)
+    ax2.set_title("Theta vs Phi")
+    ax2.set_xlabel('Outgoing Phi (Degrees)')
+    ax2.set_ylabel('Outgoing Theta (Degrees)')
+    fig2.show()
     
     input("Enter to exit")

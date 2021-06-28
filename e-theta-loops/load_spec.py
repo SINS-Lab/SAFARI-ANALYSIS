@@ -48,8 +48,8 @@ class Spec:
         l_T = len(self.detections[1])
         l_P = len(self.detections[1][0])
 
-        data = np.zeros((l_E, l_T))
-
+        self.img = np.zeros((l_E, l_T))
+        self.theta_phi = np.zeros((l_T, l_P))
 
         for n_E in range(l_E):
             table = self.detections[n_E]
@@ -57,11 +57,9 @@ class Spec:
                 row = table[n_T]
                 for n_P in range(l_P):
                     P = interp(n_P, l_P, self.p_range[0], self.p_range[1])
+                    self.theta_phi[n_T][n_P] = self.theta_phi[n_T][n_P] + row[n_P]
                     if P > self.phi - d_phi/2 and P < self.phi + d_phi/2:
-                        data[n_E][n_T] = data[n_E][n_T] + row[n_P]
-        print(l_T)
-        print(l_E)
-        self.img = data
+                        self.img[n_E][n_T] = self.img[n_E][n_T] + row[n_P]
 
     def parse_data(self, data):
         rows = data.split('\n')
@@ -102,16 +100,18 @@ if __name__ == "__main__" :
     spec.process_data()
     print(spec)
 
-    fig, ax = plt.subplots()
-
     e_max = spec.e_range[1]
     e_min = spec.e_range[0]
     t_min = spec.t_range[0]
     t_max = spec.t_range[1]
+    p_min = spec.p_range[0]
+    p_max = spec.p_range[1]
 
     del_e = e_max-e_min
     del_t = t_max-t_min
+    del_p = p_max-p_min
 
+    fig, ax = plt.subplots()
     im = ax.imshow(spec.img, interpolation="bicubic", extent=(t_min, t_max, e_max, e_min))
     ax.invert_yaxis()
     ax.set_aspect(aspect=del_t/del_e)
@@ -120,5 +120,15 @@ if __name__ == "__main__" :
     ax.set_xlabel('Outgoing angle (Degrees)')
     ax.set_ylabel('Outgoing Energy (eV)')
     fig.show()
+
+    fig2, ax2 = plt.subplots()
+    im2 = ax2.imshow(spec.theta_phi, interpolation="bicubic", extent=(p_min, p_max, t_max, t_min))
+    ax2.invert_yaxis()
+    ax2.set_aspect(aspect=del_p/del_t)
+    fig2.colorbar(im2, ax=ax2)
+    ax2.set_title("Theta vs Phi")
+    ax2.set_xlabel('Outgoing Phi (Degrees)')
+    ax2.set_ylabel('Outgoing Theta (Degrees)')
+    fig2.show()
 
     input("Enter to exit")
