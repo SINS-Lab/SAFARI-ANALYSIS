@@ -42,7 +42,11 @@ class Spectrum(detect.Spectrum):
         return dropdown
     
     def getDetectorType(self):
-        return self.detectorDropdown.currentText()
+        return self.detectorDropdown.currentText()    
+        
+    def getDetector(self):
+        self.detector.safio = self.safio
+        return self.detector
         
     def detectorSettings(self):
         '''When the button is pressed, this should
@@ -73,6 +77,7 @@ class Spectrum(detect.Spectrum):
                 theta = float(self.box_thetamin.displayText())
                 ares = float(self.box_ares.displayText())
                 self.detector = detect.SpotDetector(theta, phi, ares)
+                self.last_set = None
             elif dtype == 'Stripe':
                 print(dtype)
             
@@ -204,6 +209,7 @@ class Spectrum(detect.Spectrum):
             #     self.detector = detect.SpotDetector(i, phi, ares)
 
             try:
+                self.getDetector()
                 self.clean(emin=_emin,emax=_emax,\
                         phimin=_phimin,phimax=_phimax,\
                         thmin=_thmin,thmax=_thmax)
@@ -226,8 +232,8 @@ class Spectrum(detect.Spectrum):
                                                float(thmax.displayText()),\
                                                float(phimin.displayText()),\
                                                dphi)
+                self.getDetector()
                 print('clean data')
-                self.detector.safio = self.safio
                 self.last_set = None
                 self.clean(emin=float(emin.displayText()),\
                            emax=float(emax.displayText()),\
@@ -252,6 +258,7 @@ class Spectrum(detect.Spectrum):
         def runET():
             try:
                 self.last_set = None
+                self.getDetector()
                 self.clean(emin=float(emin.displayText()),\
                            emax=float(emax.displayText()),\
                            phimin=float(phimin.displayText()),\
@@ -278,7 +285,7 @@ class Spectrum(detect.Spectrum):
                                                float(thmax.displayText()),\
                                                float(phimin.displayText()),\
                                                dphi)
-                self.detector.safio = self.safio
+                self.getDetector()
                 self.last_set = None
                 self.clean(emin=float(emin.displayText()),\
                            emax=float(emax.displayText()),\
@@ -300,6 +307,7 @@ class Spectrum(detect.Spectrum):
         impbutton = QPushButton('Impact Plot')
         def runIMP():
             try:
+                self.getDetector()
                 self.clean(emin=float(emin.displayText()),\
                            emax=float(emax.displayText()),\
                            phimin=float(phimin.displayText()),\
@@ -320,6 +328,7 @@ class Spectrum(detect.Spectrum):
         impbutton2 = QPushButton('Impact Plot No Basis')
         def runIMP2():
             try:
+                self.getDetector()
                 self.clean(emin=float(emin.displayText()),\
                            emax=float(emax.displayText()),\
                            phimin=float(phimin.displayText()),\
