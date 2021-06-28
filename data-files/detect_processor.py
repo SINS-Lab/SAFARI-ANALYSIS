@@ -349,11 +349,8 @@ class Detector:
         subprocess.Popen(cmd, shell=True)
         
     def impactParam(self, basis=None, dx=0, dy=0):
-        x = self.detections[..., 0]
-        y = self.detections[..., 1]
-        c = self.detections[..., 3]
         
-        fig, ax = plt.subplots(figsize=(8.0, 6.0))
+        fig, ax = plt.subplots(figsize=(12.0, 9.0))
         patches = []
         colours = []
         
@@ -382,7 +379,15 @@ class Detector:
         ax.set_xlim(self.safio.XSTART, self.safio.XSTOP)
         ax.set_ylim(self.safio.YSTART, self.safio.YSTOP)
         
-        #Draw the points
+        #Draw the points        
+        x = []
+        y = []
+        c = []
+        if len(self.detections) > 0:
+            x = self.detections[..., 0]
+            y = self.detections[..., 1]
+            c = self.detections[..., 3]
+        
         scat = ax.scatter(x, y, c=c, cmap=plt.get_cmap('plasma'))
         fig.colorbar(scat, ax=ax)
 
