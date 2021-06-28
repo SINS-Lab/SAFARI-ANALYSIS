@@ -512,7 +512,9 @@ class Detector:
             file_name = self.outputprefix\
                   + 'Imapct-'\
                   + str(self.emin) + '-'\
-                  + str(self.emax)
+                  + str(self.emax) + '_'\
+                  + str(self.tmin) + '-'\
+                  + str(self.tmax)
             fig.savefig(file_name+'.png')
         
 class StripeDetector(Detector):
@@ -545,8 +547,8 @@ class SpotDetector(Detector):
     def __init__(self, theta, phi, size):
         super().__init__()
         self.theta = theta
-        self.tmin = theta
-        self.tmax = theta
+        self.tmin = theta - size/2
+        self.tmax = theta + size/2
         self.phi = phi
         self.size = size
         self.dir = unit(theta, phi)
