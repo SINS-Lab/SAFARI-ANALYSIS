@@ -32,7 +32,8 @@ if __name__ == "__main__" :
 
     img = spec.img
 
-    fig, ax = plt.subplots()
+    plt.rcParams.update({'font.size': 22})
+    fig, ax = plt.subplots(figsize=(12.0, 9.0))
     im = ax.imshow(img, interpolation="bicubic", extent=(t_min, t_max, e_max, e_min))
     ax.invert_yaxis()
     ax.set_aspect(aspect=del_t/del_e)
@@ -47,10 +48,10 @@ if __name__ == "__main__" :
     S = []
     for i in range(img.shape[1]):
         slyce = img[:,i]
-        params = esa.fit_esa(slyce, axis,actualname=" fit", plot=False,min_h = max(np.max(slyce)/10,10))
+        params = esa.fit_esa(slyce, axis,actualname=" fit", plot=False,min_h = max(np.max(slyce)/10,10),min_w=1)
         # +0.5 to shift the point to the middle of the bin
         T = load_spec.interp(i+0.5, img.shape[1], t_min, t_max)
-        if params is not None and len(params > 2):
+        if params is not None and len(params) > 2:
             for j in range(2, len(params), 3):
                 E = params[j+2]
                 if E > spec.energy or E < 0:
@@ -59,7 +60,7 @@ if __name__ == "__main__" :
                 Y.append(E)
                 S.append(abs(params[j+1]))
         else:
-            print("No fits at angle {}".format(T))
+            print("No fits at angle {}, {}".format(T, params))
 
     if len(X) > 0:
         ax.scatter(X,Y,c='y',s=4,label="Simulation")
@@ -81,6 +82,8 @@ if __name__ == "__main__" :
     ax2.set_title("Theta vs Phi")
     ax2.set_xlabel('Outgoing Phi (Degrees)')
     ax2.set_ylabel('Outgoing Theta (Degrees)')
-    fig2.show()
+    # fig2.show()
+
+    fig.savefig(args.input.replace('.spec', '_fits.png'))
     
     input("Enter to exit")

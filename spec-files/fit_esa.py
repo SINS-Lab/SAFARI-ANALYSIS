@@ -9,6 +9,7 @@ import scipy.signal as signal       # Peak finding
 #Qt5Agg is the backend
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt     # Plotting
+import traceback                    # Error handling
 
 from scipy.optimize import curve_fit# Fitting the gaussians
 from scipy.stats import linregress  # for R-value on the plot
@@ -85,6 +86,8 @@ def fit_esa(values, axis, actualname=None, plot=True, min_h = 10, min_w = 1):
     try:
         popt, pcov = curve_fit(multiples, axis, values, p0=params)
     except:
+        print("Convergance Error?")
+        traceback.print_exc()
         return None
 
     x_0 = axis
