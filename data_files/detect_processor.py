@@ -3,12 +3,7 @@ import numpy as np                                   # General array stuff.
 import platform                                      # Linux vs Windows Checks
 import os                                            # Path related stuff
 import shutil                                        # Used to copy files.
-#if you utilize the following two lines you will be able to run 
-#the figures in here. This requires changing the backend of the fig.show()
-#for more backend choices please see https://matplotlib.org/tutorials/introductory/usage.html#what-is-a-backend
 import matplotlib                                    # Main plotting
-#Qt5Agg is the backend
-matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt                      # More plotting stuff
 from matplotlib.patches import Circle                # Cirlces on impact plot
 from matplotlib.collections import PatchCollection   # Also for the circles
@@ -30,6 +25,9 @@ def round_n(x, n):
     return float(as_string)
 
 def loadCrystal(name):
+
+    name = name.replace('.dbug','').replace('.input','')
+
     f = open(name+'.crys', 'r')
     data = []
     for line in f:
@@ -172,6 +170,8 @@ class Detector:
 
         self.tmp = []
 
+        self.ss_cmd = "python3 detect_impact.py"
+
     def clear(self):
         self.detections = np.zeros((0,8))
         
@@ -193,13 +193,6 @@ class Detector:
         
         tArr = self.detections[...,4]
         aArr = self.detections[...,7]
-
-        # # Weight the trajectories based on outoging velocity
-        # eArr = self.detections[...,3]
-        # # eArr = np.sqrt(eArr)
-        # tfArr = np.multiply(tArr, math.pi/180)
-        # tfArr = np.sin(tfArr)
-        # aArr = np.multiply(eArr, tfArr)
 
         intensity, scale = integrate(numpoints, winv, tArr, aArr, angles)
 
@@ -224,6 +217,8 @@ class Detector:
             ax.tick_params(direction="in", which='both')
             if self.plots:
                 fig.show()
+            else:
+                self.fig, self.ax = fig, ax
         #The following saves the plot as a png file
             if self.pics:
                 fig.savefig(file_name+'.png')
@@ -237,8 +232,12 @@ class Detector:
         e_min = self.emin / self.safio.E0
         energy = np.array([(e_min + x*step) for x in range(numpoints)])
         
-        eArr = self.detections[...,3]/self.safio.E0
-        aArr = self.detections[...,7]
+        eArr = []
+        aArr = []
+
+        if len(self.detections) > 0:
+            eArr = self.detections[...,3]/self.safio.E0
+            aArr = self.detections[...,7]
         
         #Convert the points into gaussians
         intensity, scale = integrate(numpoints, winv, eArr, aArr, energy)
@@ -263,49 +262,50 @@ class Detector:
                     out.write("{}\t{}\n".format(energy[i], intensity[i]))
             out.close()
         
-        if self.plots or self.pics:
-            fig, ax = plt.subplots(figsize=(8.0, 6.0))
-            
-            ax.plot(energy, intensity)
-            #ax.set_xlim(0,self.safio.E0)
-            ax.set_ylim(0,1)
-            ax.set_xlim(0,1)
-            
-            ax2 = ax.twiny()
-            ax2.set_xlim(0,self.safio.E0)
-            
-            identification = self.outputprefix
-            fig.text(0.0, 0.975, identification, fontsize=9)
+        fig, ax = plt.subplots(figsize=(8.0, 6.0))
+        
+        ax.plot(energy, intensity)
+        #ax.set_xlim(0,self.safio.E0)
+        ax.set_ylim(0,1)
+        ax.set_xlim(0,1)
+        
+        ax2 = ax.twiny()
+        ax2.set_xlim(0,self.safio.E0)
+        
+        identification = "{}; Counts: {}".format(self.outputprefix, len(eArr))
+        fig.text(0.0, 0.975, identification, fontsize=9)
 
-            print(identification)
-            print("I_E, Detections: "+str(len(aArr)))
-            
-            ax.set_xlabel('Energy (E/E0)')
-            ax.tick_params(direction="in", which='both')
-            ax2.set_xlabel('Energy (eV)')
-            ax2.tick_params(axis="x", direction="in")
+        print(identification)
+        
+        ax.set_xlabel('Energy (E/E0)')
+        ax.tick_params(direction="in", which='both')
+        ax2.set_xlabel('Energy (eV)')
+        ax2.tick_params(axis="x", direction="in")
 
-            ax.set_ylabel('Intensity')
+        ax.set_ylabel('Intensity')
 
-            self.added_kplot = True
+        self.added_kplot = True
+        self.fig, self.ax = fig, ax
 
-            if self.plots:
+        self.kplot, = ax.plot([k,k],[-1,2], label='k-Factor', c='orange')
+        ax.legend(handles=[self.kplot], loc='upper left')
 
+        def on_click(event):
+            if self.added_kplot:
+                self.kplot.remove()
+                ax.get_legend().remove()
+            else:
                 self.kplot, = ax.plot([k,k],[-1,2], label='k-Factor', c='orange')
                 ax.legend(handles=[self.kplot], loc='upper left')
+            self.added_kplot = not self.added_kplot
+            fig.canvas.draw()
+            return
 
-                def on_click(event):
-                    if self.added_kplot:
-                        self.kplot.remove()
-                        ax.get_legend().remove()
-                    else:
-                        self.kplot, = ax.plot([k,k],[-1,2], label='k-Factor', c='orange')
-                        ax.legend(handles=[self.kplot], loc='upper left')
-                    self.added_kplot = not self.added_kplot
-                    fig.canvas.draw()
-                    return
+        fig.canvas.mpl_connect('button_press_event', on_click)
 
-                fig.canvas.mpl_connect('button_press_event', on_click)
+        if self.plots or self.pics:
+
+            if self.plots:
                 fig.show()
                 
             #The following saves the plot as a png file
@@ -322,12 +322,14 @@ class Detector:
         if self.safio.load_crystal:
             old_crys = new_input.replace('_ss.input', '.crys_in')
             new_crys = old_crys.replace('.crys_in', '_ss.crys_in')
+            if not os.path.isfile(old_crys):
+                old_crys = old_crys.replace('.crys_in', '.crys')
             try:
                 shutil.copy(old_crys, new_crys)
             except:
                 print("Error copying the crystal file over!")
-                print(crys_file_in)
-                print(crys_file_out)
+                print(old_crys)
+                print(new_crys)
         
         self.safio.fileIn = new_input
         self.safio.setGridScat(True)
@@ -349,8 +351,8 @@ class Detector:
         subprocess.Popen(cmd, shell=True)
         
     def impactParam(self, basis=None, dx=0, dy=0):
-        
         fig, ax = plt.subplots(figsize=(12.0, 9.0))
+        self.fig, self.ax = fig, ax
         patches = []
         colours = []
         
@@ -391,17 +393,16 @@ class Detector:
         scat = ax.scatter(x, y, c=c, cmap=plt.get_cmap('plasma'))
         fig.colorbar(scat, ax=ax)
 
-
         tool_text = "Left Click: View Point\nDouble Left Click: Open Normal-Colored VMD\nDouble Right Click: Open Nearest-Colored VMD\nShift + Left Click: Open Velocity-Colored VMD"
         select_text = 'None Selected'
         #Add selected point label
-        text_selected = fig.text(0.1, 0.95, select_text,fontsize=9)
+        self.text_selected = fig.text(0.1, 0.95, select_text, fontsize=9)
         
         ax.set_title("Detections: "+str(len(x)))
         ax.set_xlabel('X Target (Angstroms)')
         ax.set_ylabel('Y Target (Angstroms)')
 
-        text_tooltip = fig.text(0.6, 0.9, tool_text, fontsize=9)
+        self.text_tooltip = fig.text(0.6, 0.9, tool_text, fontsize=9)
 
         #Make the selected item indicator
         px = 0
@@ -450,31 +451,31 @@ class Detector:
                     close[1] = y[i]
                     index = i
                     ion_index = self.detections[..., 6][i]
-
+            ion_index = int(ion_index)
             if event.dblclick and event.button == 1 and not shift_is_held:
                 print("Setting up a safari run for a single shot")
                 # Setup a single run safari for this.
                 self.run_single_shot(close, ion_index,\
-                                'python3 detect_impact.py -i {} -o {} -x {} -y {} -s {} -r')
+                                self.ss_cmd + ' -i {} -o {} -x {} -y {} -s {} -r')
             if event.dblclick and event.button == 3:
                 # Setup a single run safari using nearness colored data
                 print("Setting up a safari run for a nearness colored dataset")
                 # Setup a single run safari for this.
                 self.run_single_shot(close, ion_index,\
-                                'python3 detect_impact.py -i {} -o {} -x {} -y {} -s {} -r -c nearby')
+                                self.ss_cmd + ' -i {} -o {} -x {} -y {} -s {} -r -c nearby')
             if event.button == 1 and shift_is_held:
                 # Setup a single run safari using velocity colored data
                 print("Setting up a safari run for a velocity colored dataset")
                 # Setup a single run safari for this.
                 self.run_single_shot(close, ion_index,\
-                                'python3 detect_impact.py -i {} -o {} -x {} -y {} -s {} -r -c velocity')
+                                self.ss_cmd + ' -i {} -o {} -x {} -y {} -s {} -r -c velocity')
             
             close[0] = round(close[0], 5)
             close[1] = round(close[1], 5)
             energy = round(self.detections[index][3], 2)
             angle = round(self.detections[index][4], 1)
-            select_text = '{}, {}eV ({}), {}°'.format(close, energy, round(energy/self.safio.E0,3), angle)
-            text_selected.set_text(select_text)
+            select_text = '{}, {}eV ({}), {}°, {}'.format(close, energy, round(energy/self.safio.E0,3), angle, ion_index)
+            self.text_selected.set_text(select_text)
             px = close[0]
             py = close[1]
             self.p.set_xdata([px])
@@ -501,7 +502,6 @@ class Detector:
                     self.p.set_ydata([py])
                     fig.canvas.draw()
 
-
         def on_key_release(event):
             if event.key == 'shift':
                 global shift_is_held
@@ -511,7 +511,8 @@ class Detector:
         fig.canvas.mpl_connect('key_release_event', on_key_release)
         fig.canvas.mpl_connect('button_press_event', onclick)
         
-        fig.show()
+        if self.plots:
+            fig.show()
 
         if self.pics:
             file_name = self.outputprefix\
@@ -558,8 +559,8 @@ class SpotDetector(Detector):
         self.size = size
         self.dir = unit(theta, phi)
         self.quadDots = []
-        self.quadDots.append(self.dir.dot(unit(theta - size/2, phi)))
-        self.quadDots.append(self.dir.dot(unit(theta + size/2, phi)))
+        self.quadDots.append(self.dir.dot(unit(self.tmin, phi)))
+        self.quadDots.append(self.dir.dot(unit(self.tmax, phi)))
         self.quadDots.append(self.dir.dot(unit(theta, phi - size/2)))
         self.quadDots.append(self.dir.dot(unit(theta, phi + size/2)))
 
@@ -595,11 +596,13 @@ class Spectrum:
         self.buried = []
         self.other_failed = []
         self.crystal = []
+        self.last_set = None
 
     def clear(self):
         self.detector = None
         self.box_emin = None
         self.safio = None
+        self.last_set = None
         self.stuck = []
         self.buried = []
         self.crystal = []
@@ -609,6 +612,12 @@ class Spectrum:
                                      phimin=-1e6, phimax=1e6, \
                                      thmin=-1e6, thmax=1e6):
         # If this is not the case, detector is defined elsewhere.
+        argset = '{}_{}_{}_{}_{}_{}_{}'.format(detectorType, emin, emax, phimin, phimax, thmin, thmax)
+
+        if self.last_set == argset:
+            return
+        self.last_set = argset
+
         if self.detector is None:
             self.detectorType = self.safio.NDTECT
             self.detectorParams = self.safio.DTECTPAR
@@ -620,7 +629,7 @@ class Spectrum:
         self.detector.plots = self.plots
         self.detector.pics = self.pics
         self.detector.outputprefix = self.name+'_spectrum_'
-        
+
         self.detector.emin = emin
         self.detector.emax = emax
 
@@ -690,7 +699,7 @@ class Spectrum:
                 hit = hit + 1
         print("Collected points, sorting now. {} out of {} were in detector".format(hit, tested))
         self.detector.detections = np.array(self.detector.tmp)
-        self.tmp = []
+        self.detector.tmp = []
         end = time.time()
         print("Time to process data: {:.3f}s".format(end - start))
 
@@ -748,21 +757,23 @@ class Spectrum:
                     img[i_e][i_t] = img[i_e][i_t] + 1
             max_intensity = np.max(img)
         
+        fig, ax = plt.subplots()
+        self.fig, self.ax = fig, ax
+        im = ax.imshow(img, interpolation="bicubic", extent=(t_min, t_max, e_max, e_min))
+        ax.invert_yaxis()
+        ax.set_aspect(aspect=del_t/del_e)
+        fig.colorbar(im, ax=ax)
+        ax.set_title("Energy vs Theta, Counts: {}, Size: {}".format(x, size))
+        ax.set_xlabel('Outgoing angle (Degrees)')
+        ax.set_ylabel('Outgoing Energy (eV)')
+        p_max = self.p_max
+        p_min = self.p_min
+        formatting = "{}ETheta-{}eV-{}eV_{}-{}_{}-{}_{}.png"
+        file_name = formatting.format(self.detector.outputprefix, e_min, e_max, t_min, t_max, p_min, p_max, size)
+        matplotlib.image.imsave(file_name, img)
+
         if self.plots:
-            fig, ax = plt.subplots()
-            im = ax.imshow(img, interpolation="bicubic", extent=(t_min, t_max, e_max, e_min))
-            ax.invert_yaxis()
-            ax.set_aspect(aspect=del_t/del_e)
-            fig.colorbar(im, ax=ax)
-            ax.set_title("Energy vs Theta, Counts: {}, Size: {}".format(x, size))
-            ax.set_xlabel('Outgoing angle (Degrees)')
-            ax.set_ylabel('Outgoing Energy (eV)')
             fig.show()
-            p_max = self.p_max
-            p_min = self.p_min
-            formatting = "{}ETheta-{}eV-{}eV_{}-{}_{}-{}_{}.png"
-            file_name = formatting.format(self.detector.outputprefix, e_min, e_max, t_min, t_max, p_min, p_max, size)
-            matplotlib.image.imsave(file_name, img)
 
     def plotPhiTheta(self):
 
@@ -820,17 +831,21 @@ class Spectrum:
                     img[i_t][i_p] = img[i_t][i_p] + 1
             max_intensity = np.max(img)
         
+        fig, ax = plt.subplots()
+        self.fig, self.ax = fig, ax
+        im = ax.imshow(img, interpolation="bicubic", extent=(p_max, p_min, t_min, t_max))
+        ax.invert_yaxis()
+        ax.set_aspect(aspect=del_p/del_t)
+        fig.colorbar(im, ax=ax)
+        ax.set_title("Theta vs Phi, Counts: {}, Size: {}".format(x, size))
+        ax.set_xlabel('Phi Angle (Degrees)')
+        ax.set_ylabel('Theta Angle (Degrees)')
+        fig.show()
+        formatting = "{}PTheta-{}eV-{}eV_{}-{}_{}.png"
+        file_name = formatting.format(self.detector.outputprefix, p_max, p_min, t_min, t_max, size)
+        matplotlib.image.imsave(file_name, img)
+        
         if self.plots:
             fig, ax = plt.subplots()
-            im = ax.imshow(img, interpolation="bicubic", extent=(p_max, p_min, t_min, t_max))
-            ax.invert_yaxis()
-            ax.set_aspect(aspect=del_p/del_t)
-            fig.colorbar(im, ax=ax)
-            ax.set_title("Theta vs Phi, Counts: {}, Size: {}".format(x, size))
-            ax.set_xlabel('Phi Angle (Degrees)')
-            ax.set_ylabel('Theta Angle (Degrees)')
+            self.fig, self.ax = fig, ax
             fig.show()
-            formatting = "{}PTheta-{}eV-{}eV_{}-{}_{}.png"
-            file_name = formatting.format(self.detector.outputprefix, p_max, p_min, t_min, t_max, size)
-            matplotlib.image.imsave(file_name, img)
-        

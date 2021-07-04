@@ -24,14 +24,6 @@ class Spectrum(detect.Spectrum):
     def __init__(self):
         super().__init__()
         self.popup = None
-
-    def clean(self, detectorType=-1, emin=-1e6, emax=1e6,\
-                                     phimin=-1e6, phimax=1e6, \
-                                     thmin=-1e6, thmax=1e6):
-        argset = '{}_{}_{}_{}_{}_{}_{}'.format(detectorType, emin, emax, phimin, phimax, thmin, thmax)
-        if self.last_set is None or self.last_set != argset:
-            super().clean(detectorType, emin, emax, phimin, phimax, thmin, thmax)
-        self.last_set = argset
         
     def detectorSelection(self):
         '''This makes the dropdown menu for detectors.'''

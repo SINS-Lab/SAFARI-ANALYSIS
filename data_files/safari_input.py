@@ -60,7 +60,7 @@ def isFloat(s):
 
 class SafariInput:
 
-    def __init__(self, fileIn):
+    def __init__(self, fileIn, save_mod=True):
         self.fileIn = fileIn
 
         self.file_type = ".input"
@@ -163,11 +163,13 @@ class SafariInput:
         self.F_b = 0
 
         self.load()
-        # Instead here we should check for a default file, and use that
-        # if we do not have the requested input file.
-        self.fileIn = fileIn.replace(self.file_type, '_mod.input')
-        # This copies stuff from the original input to the modified one.
-        self.save()
+
+        if save_mod:
+            # Instead here we should check for a default file, and use that
+            # if we do not have the requested input file.
+            self.fileIn = fileIn.replace(self.file_type, '_mod.input')
+            # This copies stuff from the original input to the modified one.
+            self.save()
         return
     
     def genInputFile(self, fileIn=None):

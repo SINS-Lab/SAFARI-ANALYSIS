@@ -1,7 +1,5 @@
 import numpy as np
-import matplotlib      # Main plotting
-#Qt5Agg is the backend
-matplotlib.use('Qt5Agg')
+import matplotlib
 import matplotlib.pyplot as plt 
 
 def interp(n, l, start, end):
@@ -20,6 +18,7 @@ class Spec:
         self.p_range = [0,0]
         self.load(file)
         self.img = None
+        self.theta_phi = None
 
     def parse_header(self, header):
         rows = header.split('\n')
@@ -43,13 +42,14 @@ class Spec:
             elif line.startswith('Total Counts:'):
                 self.counts = float(vars[2])
 
-    def process_data(self, d_phi=1):
+    def process_data(self, d_phi=1, do_phi=True):
         l_E = len(self.detections) - 1
         l_T = len(self.detections[1])
         l_P = len(self.detections[1][0])
 
         self.img = np.zeros((l_E, l_T))
-        self.theta_phi = np.zeros((l_T, l_P))
+        if do_phi:
+            self.theta_phi = np.zeros((l_T, l_P))
 
         for n_E in range(l_E):
             table = self.detections[n_E]
@@ -57,9 +57,68 @@ class Spec:
                 row = table[n_T]
                 for n_P in range(l_P):
                     P = interp(n_P, l_P, self.p_range[0], self.p_range[1])
-                    self.theta_phi[n_T][n_P] = self.theta_phi[n_T][n_P] + row[n_P]
+                    if do_phi:
+                        self.theta_phi[n_T][n_P] = self.theta_phi[n_T][n_P] + row[n_P]
                     if P > self.phi - d_phi/2 and P < self.phi + d_phi/2:
                         self.img[n_E][n_T] = self.img[n_E][n_T] + row[n_P]
+
+    def make_e_t_plot(self, try_fit=True, data=None, do_plot=True):
+        e_max = self.e_range[1]
+        e_min = self.e_range[0]
+        t_min = self.t_range[0]
+        t_max = self.t_range[1]
+        p_min = self.p_range[0]
+        p_max = self.p_range[1]
+
+        del_e = e_max-e_min
+        del_t = t_max-t_min
+        del_p = p_max-p_min
+
+        img = self.img
+
+        plt.rcParams.update({'font.size': 20})
+        fig, ax = plt.subplots(figsize=(12.0, 9.0))
+        self.fig, self.ax = fig, ax
+        im = ax.imshow(img, interpolation="bicubic", extent=(t_min, t_max, e_max, e_min))
+        ax.invert_yaxis()
+        ax.set_aspect(aspect=del_t/del_e)
+        fig.colorbar(im, ax=ax)
+        ax.set_title("Energy vs Theta")
+        ax.set_xlabel('Outgoing angle (Degrees)')
+        ax.set_ylabel('Outgoing Energy (eV)')
+        
+        if try_fit:
+
+            axis = esa.make_axis(e_min, e_max, self.energy, img.shape[0]) * self.energy
+            X = []
+            Y = []
+            S = []
+            for i in range(img.shape[1]):
+                slyce = img[:,i]
+                params = esa.fit_esa(slyce, axis,actualname=" fit", plot=False,min_h = max(np.max(slyce)/10,10),min_w=1)
+                # +0.5 to shift the point to the middle of the bin
+                T = load_self.interp(i+0.5, img.shape[1], t_min, t_max)
+                if params is not None and len(params) > 2:
+                    for j in range(2, len(params), 3):
+                        E = params[j+2]
+                        if E > self.energy or E < 0:
+                            continue
+                        X.append(T)
+                        Y.append(E)
+                        S.append(abs(params[j+1]))
+                else:
+                    print("No fits at angle {}, {}".format(T, params))
+            if len(X) > 0:
+                ax.scatter(X,Y,c='y',s=4,label="Simulation")
+                ax.errorbar(X,Y,yerr=S, c='y',fmt='none',capsize=2)
+            if data is not None:
+                theta, energy, err = esa.load_data(data)
+                ax.scatter(theta,energy,c='r',s=4,label="Data")
+                if err is not None:
+                    ax.errorbar(theta,energy,yerr=err, c='r',fmt='none',capsize=2)
+            ax.legend()
+        if do_plot:
+            fig.show()
 
     def parse_data(self, data):
         rows = data.split('\n')

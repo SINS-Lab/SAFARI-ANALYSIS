@@ -6,8 +6,6 @@ import matplotlib                   # Plotting
 import os                           # Path related stuff
 import scipy.signal as signal       # Peak finding
 
-#Qt5Agg is the backend
-matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt     # Plotting
 import traceback                    # Error handling
 
