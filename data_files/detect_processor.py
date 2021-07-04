@@ -376,7 +376,8 @@ class Detector:
             ax.add_collection(p)
         
             #Add a heightmap
-            fig.colorbar(p, ax=ax)
+            hm = fig.colorbar(p, ax=ax)
+            hm.set_label("Site Z Coordinate (Angstroms)")
         
         ax.set_xlim(self.safio.XSTART, self.safio.XSTOP)
         ax.set_ylim(self.safio.YSTART, self.safio.YSTOP)
@@ -391,7 +392,8 @@ class Detector:
             c = self.detections[..., 3]
         
         scat = ax.scatter(x, y, c=c, cmap=plt.get_cmap('plasma'))
-        fig.colorbar(scat, ax=ax)
+        cb = fig.colorbar(scat, ax=ax)
+        cb.set_label("Final Energy (eV)")
 
         tool_text = "Left Click: View Point\nDouble Left Click: Open Normal-Colored VMD\nDouble Right Click: Open Nearest-Colored VMD\nShift + Left Click: Open Velocity-Colored VMD"
         select_text = 'None Selected'
@@ -762,7 +764,8 @@ class Spectrum:
         im = ax.imshow(img, interpolation="bicubic", extent=(t_min, t_max, e_max, e_min))
         ax.invert_yaxis()
         ax.set_aspect(aspect=del_t/del_e)
-        fig.colorbar(im, ax=ax)
+        cb = fig.colorbar(im, ax=ax)
+        cb.set_label("Counts")
         ax.set_title("Energy vs Theta, Counts: {}, Size: {}".format(x, size))
         ax.set_xlabel('Outgoing angle (Degrees)')
         ax.set_ylabel('Outgoing Energy (eV)')
@@ -836,7 +839,8 @@ class Spectrum:
         im = ax.imshow(img, interpolation="bicubic", extent=(p_max, p_min, t_min, t_max))
         ax.invert_yaxis()
         ax.set_aspect(aspect=del_p/del_t)
-        fig.colorbar(im, ax=ax)
+        cb = fig.colorbar(im, ax=ax)
+        cb.set_label("Counts")
         ax.set_title("Theta vs Phi, Counts: {}, Size: {}".format(x, size))
         ax.set_xlabel('Phi Angle (Degrees)')
         ax.set_ylabel('Theta Angle (Degrees)')

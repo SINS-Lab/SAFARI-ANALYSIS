@@ -19,6 +19,8 @@ class Spec:
         self.load(file)
         self.img = None
         self.theta_phi = None
+        self.big_font = True
+        self.figsize = (12.0, 9.0)
 
     def parse_header(self, header):
         rows = header.split('\n')
@@ -76,13 +78,16 @@ class Spec:
 
         img = self.img
 
-        plt.rcParams.update({'font.size': 20})
-        fig, ax = plt.subplots(figsize=(12.0, 9.0))
+        if self.big_font:
+            plt.rcParams.update({'font.size': 20})
+        
+        fig, ax = plt.subplots(figsize=self.figsize)
         self.fig, self.ax = fig, ax
         im = ax.imshow(img, interpolation="bicubic", extent=(t_min, t_max, e_max, e_min))
         ax.invert_yaxis()
         ax.set_aspect(aspect=del_t/del_e)
-        fig.colorbar(im, ax=ax)
+        cb = fig.colorbar(im, ax=ax)
+        cb.set_label("Counts")
         ax.set_title("Energy vs Theta")
         ax.set_xlabel('Outgoing angle (Degrees)')
         ax.set_ylabel('Outgoing Energy (eV)')

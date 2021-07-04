@@ -20,8 +20,15 @@ from spec_files.load_spec import Spec
 from multiprocessing import Process
 
 root_path = os.path.expanduser(".")
-font1 = ('Times New Roman', 16)
-font2 = ('Times New Roman', 14)
+
+font_12 = ('Times New Roman', 12)
+font_14 = ('Times New Roman', 14)
+font_16 = ('Times New Roman', 16)
+font_18 = ('Times New Roman', 18)
+font_20 = ('Times New Roman', 20)
+
+plt.rcParams.update({'font.family': 'Times New Roman'})
+plt.rcParams.update({'font.size': 18})
 
 processes = []
 
@@ -93,7 +100,7 @@ class DetectGui:
     # Starts the tk application, adds the file menus, etc
     def start(self):
         self.root = tk.Tk()
-
+        
         menu = tk.Menu(self.root)
         self.root.config(menu=menu)
 
@@ -137,9 +144,9 @@ class DetectGui:
         t = tk.Toplevel(self.root)
         t.wm_title("About")
         t.configure(background='white')
-        l = tk.Label(t, text = self.helpMessage, bg='white', font = font2)
+        l = tk.Label(t, text = self.helpMessage, bg='white', font = font_14)
         l.pack(side="top", fill="both", expand=True, padx=100, pady=100)
-        messageVar = tk.Message(t, text = self.copyrightMessage, bg='white', fg='black', font = font2, width = 600)
+        messageVar = tk.Message(t, text = self.copyrightMessage, bg='white', fg='black', font = font_14, width = 600)
         messageVar.place(relx = 0.5, rely = 1, anchor = tk.S)
 
     # Exits the application
@@ -183,9 +190,9 @@ class DetectGui:
         fields = {}
         i = 0
         for key,value in thing._names_.items():
-            label = tk.Label(window, text = value, font = font2)
+            label = tk.Label(window, text = value, font = font_14)
             label.place(relx=0.4, y=50 + i * 20, anchor = tk.E)
-            entry = tk.Entry(window, font = font2, width = 10)
+            entry = tk.Entry(window, font = font_14, width = 10)
             entry.insert(0, getattr(thing,key))
             entry.place(relx=0.4, y=50  + i * 20, anchor = tk.W)
             i = i + 1
@@ -201,10 +208,10 @@ class DetectGui:
             do_update()
         window.bind('<Return>', return_pressed)
         
-        update_button = tk.Button(window, text = 'Update', relief = 'raised', activebackground='green', font = font1, width = 15, height = 1,\
+        update_button = tk.Button(window, text = 'Update', relief = 'raised', activebackground='green', font = font_16, width = 15, height = 1,\
                     command = update)
         update_button.place(relx=0.5, y=h-60, anchor = tk.CENTER)
-        cancel_button = tk.Button(window, text = 'Cancel', relief = 'raised', activebackground='red', font = font1, width = 15, height = 1,\
+        cancel_button = tk.Button(window, text = 'Cancel', relief = 'raised', activebackground='red', font = font_16, width = 15, height = 1,\
                     command = lambda: [window.destroy()])
         cancel_button.place(relx=0.5, y=h-20, anchor = tk.CENTER)
 
@@ -316,6 +323,7 @@ class DetectGui:
 
         spec_file = self.filename.replace('.input','').replace('.dbug','')+'.spec'
         spec = Spec(spec_file)
+        spec.big_font = False
         spec.process_data(d_phi=self.limits.p_max-self.limits.p_min)
         spec.make_e_t_plot(try_fit=False,do_plot=False)
 
