@@ -93,11 +93,14 @@ class DetectGui:
     # Starts the tk application, adds the file menus, etc
     def start(self):
         self.root = tk.Tk()
+
         menu = tk.Menu(self.root)
         self.root.config(menu=menu)
+
         self.root.title("SAFARI Detect")
         self.root.geometry("1280x768")
         self.root.protocol("WM_DELETE_WINDOW", self.exit_detect)
+        self.root.iconbitmap("sins-lab.ico")
 
         #Creates File menu
         filemenu = tk.Menu(menu, tearoff=0)
@@ -316,10 +319,9 @@ class DetectGui:
         spec.process_data(d_phi=self.limits.p_max-self.limits.p_min)
         spec.make_e_t_plot(try_fit=False,do_plot=False)
 
-        self.title_selected()
-
         fig, ax = spec.fig, spec.ax
         self.show_fig(fig)
+        self.title_selected()
 
     # Produces an intensity vs energy plot
     def i_vs_e_plot(self):
@@ -342,10 +344,9 @@ class DetectGui:
 
         self.title_loading()
         energy, intensity, scale = self.detector.spectrumE(res=self.detector.safio.ESIZE)
-        self.title_selected()
-
         fig, ax = self.detector.fig, self.detector.ax
         self.show_fig(fig)
+        self.title_selected()
 
     # Produces an impact plot
     def impact_plot(self):
@@ -368,10 +369,9 @@ class DetectGui:
 
         self.title_loading()
         self.detector.impactParam(basis=self.dataset.crystal)
-        self.title_selected()
-
         fig, ax = self.detector.fig, self.detector.ax
         self.show_fig(fig)
+        self.title_selected()
 
 def start():
     if len(processes) == 0:
