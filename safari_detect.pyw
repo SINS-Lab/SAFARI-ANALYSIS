@@ -23,6 +23,8 @@ root_path = os.path.expanduser(".")
 font1 = ('Times New Roman', 16)
 font2 = ('Times New Roman', 14)
 
+processes = []
+
 # Constructs and starts an instance of the gui
 def spawn_gui_proc():
     gui = DetectGui()
@@ -32,6 +34,7 @@ def spawn_gui_proc():
 def spawn_gui():
     p = Process(target=spawn_gui_proc)
     p.start()
+    processes.append(p)
 
 # Detector limits object
 class Limits:
@@ -370,5 +373,9 @@ class DetectGui:
         fig, ax = self.detector.fig, self.detector.ax
         self.show_fig(fig)
 
+def start():
+    if len(processes) == 0:
+        spawn_gui()
+
 if __name__ == '__main__':
-    spawn_gui()
+    start()
