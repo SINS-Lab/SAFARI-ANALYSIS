@@ -3,6 +3,7 @@ from tkinter import filedialog
 
 import os
 from pathlib import Path
+import platform     # Linux vs Windows check
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -107,7 +108,8 @@ class DetectGui:
         self.root.title("SAFARI Detect")
         self.root.geometry("1280x768")
         self.root.protocol("WM_DELETE_WINDOW", self.exit_detect)
-        self.root.iconbitmap("sins-lab.ico")
+        if platform.system() == 'Windows':
+            self.root.iconbitmap("sins-lab.ico")
 
         #Creates File menu
         filemenu = tk.Menu(menu, tearoff=0)
