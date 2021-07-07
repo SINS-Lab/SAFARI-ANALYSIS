@@ -18,7 +18,7 @@ import data_files.safari_input as safari_input
 import spec_files.load_spec as load_spec
 import spec_files.fit_esa as esa
 from spec_files.load_spec import Spec
-from multiprocessing import Process
+import threading
 
 root_path = os.path.expanduser(".")
 
@@ -40,7 +40,7 @@ def spawn_gui_proc():
 
 # Starts an instance of the gui as a new process
 def spawn_gui():
-    p = Process(target=spawn_gui_proc)
+    p = threading.Thread(target=spawn_gui_proc)
     p.start()
     processes.append(p)
 
@@ -292,6 +292,12 @@ class DetectGui:
 
         if self.canvas is not None:
             # If we already have a canvas and toolbar, remove them
+
+            # message is not even set on some Linux systems, causing
+            # errors when trying to call destroy() below
+            self.canvas.get_tk_widget().message = None
+            self.toolbar.message = None
+
             self.canvas.get_tk_widget().destroy()
             self.toolbar.destroy()
 
@@ -345,10 +351,6 @@ class DetectGui:
             else:
                 self.dataset = ret
 
-        if self.canvas is not None:
-            self.canvas.get_tk_widget().destroy()
-            self.toolbar.destroy()
-
         self.last_run = self.i_vs_e_plot
         self.init_data()
 
@@ -369,10 +371,6 @@ class DetectGui:
                 return
             else:
                 self.dataset = ret
-
-        if self.canvas is not None:
-            self.canvas.get_tk_widget().destroy()
-            self.toolbar.destroy()
             
         self.last_run = self.impact_plot
         self.init_data()
