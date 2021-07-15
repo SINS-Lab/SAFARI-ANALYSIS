@@ -65,7 +65,7 @@ def fit_esa(values, axis, actualname=None, plot=True, min_h = 10, min_w = 1):
     for i in range(len(matched)):
         index = matched[i]
         h = height[i]
-        if(h > max_h/10):
+        if(h > min_h):
             peaks.append(axis[index])
             widths.append((axis[index]-axis[index-1])*width[i])
             heights.append(height[i])
