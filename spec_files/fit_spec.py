@@ -46,9 +46,10 @@ if __name__ == "__main__" :
     X = []
     Y = []
     S = []
+    H = []
     for i in range(img.shape[1]):
         slyce = img[:,i]
-        params = esa.fit_esa(slyce, axis,actualname=" fit", plot=False,min_h = max(np.max(slyce)/10,10),min_w=1)
+        params = esa.fit_esa(slyce, axis,actualname=" fit", plot=False,min_h = max(np.max(slyce)/10,30),min_w=1)
         # +0.5 to shift the point to the middle of the bin
         T = load_spec.interp(i+0.5, img.shape[1], t_min, t_max)
         if params is not None and len(params) > 2:
@@ -59,12 +60,19 @@ if __name__ == "__main__" :
                 X.append(T)
                 Y.append(E)
                 S.append(abs(params[j+1]))
+                H.append(params[j])
         else:
             print("No fits at angle {}, {}".format(T, params))
 
     if len(X) > 0:
         ax.scatter(X,Y,c='y',s=4,label="Simulation")
         ax.errorbar(X,Y,yerr=S, c='y',fmt='none',capsize=2)
+
+        fit_file = open(args.input.replace('.spec', '_fits.dat'), 'w')
+        fit_file.write('Angle(Degrees)\tEnergy(eV)\tWidth(eV)\tScale\n')
+        for i in range(len(X)):
+            fit_file.write('{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\n'.format(X[i]-0.5,Y[i],S[i],H[i]))
+        fit_file.close()
 
     if args.data is not None:
         theta, energy, err = esa.load_data(args.data)
