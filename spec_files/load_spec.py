@@ -64,7 +64,7 @@ class Spec:
                     if P > self.phi - d_phi/2 and P < self.phi + d_phi/2:
                         self.img[n_E][n_T] = self.img[n_E][n_T] + row[n_P]
 
-    def make_e_t_plot(self, try_fit=True, data=None, do_plot=True):
+    def make_e_t_plot(self, data=None, do_plot=True):
         e_max = self.e_range[1]
         e_min = self.e_range[0]
         t_min = self.t_range[0]
@@ -83,7 +83,11 @@ class Spec:
         
         fig, ax = plt.subplots(figsize=self.figsize)
         self.fig, self.ax = fig, ax
-        im = ax.imshow(img, interpolation="bicubic", extent=(t_min, t_max, e_max, e_min))
+
+        # log_im = np.log(img + 1)
+        # im = ax.imshow(log_im, interpolation="bicubic", extent=(t_min, t_max, e_max, e_min), cmap=plt.get_cmap('cividis'))
+
+        im = ax.imshow(img, interpolation="bicubic", extent=(t_min, t_max, e_max, e_min), cmap=plt.get_cmap('cividis'))
         ax.invert_yaxis()
         ax.set_aspect(aspect=del_t/del_e)
         cb = fig.colorbar(im, ax=ax)
@@ -92,36 +96,6 @@ class Spec:
         ax.set_xlabel('Outgoing angle (Degrees)')
         ax.set_ylabel('Outgoing Energy (eV)')
         
-        if try_fit:
-
-            axis = esa.make_axis(e_min, e_max, self.energy, img.shape[0]) * self.energy
-            X = []
-            Y = []
-            S = []
-            for i in range(img.shape[1]):
-                slyce = img[:,i]
-                params = esa.fit_esa(slyce, axis,actualname=" fit", plot=False,min_h = max(np.max(slyce)/10,10),min_w=1)
-                # +0.5 to shift the point to the middle of the bin
-                T = load_self.interp(i+0.5, img.shape[1], t_min, t_max)
-                if params is not None and len(params) > 2:
-                    for j in range(2, len(params), 3):
-                        E = params[j+2]
-                        if E > self.energy or E < 0:
-                            continue
-                        X.append(T)
-                        Y.append(E)
-                        S.append(abs(params[j+1]))
-                else:
-                    print("No fits at angle {}, {}".format(T, params))
-            if len(X) > 0:
-                ax.scatter(X,Y,c='y',s=4,label="Simulation")
-                ax.errorbar(X,Y,yerr=S, c='y',fmt='none',capsize=2)
-            if data is not None:
-                theta, energy, err = esa.load_data(data)
-                ax.scatter(theta,energy,c='r',s=4,label="Data")
-                if err is not None:
-                    ax.errorbar(theta,energy,yerr=err, c='r',fmt='none',capsize=2)
-            ax.legend()
         if do_plot:
             fig.show()
 

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import platform     # Linux vs Windows check
 
+import numpy as np
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -19,6 +20,8 @@ import spec_files.load_spec as load_spec
 import spec_files.fit_esa as esa
 from spec_files.load_spec import Spec
 import threading
+
+global root_path
 
 root_path = os.path.expanduser(".")
 
@@ -132,7 +135,8 @@ class DetectGui:
         filemenu.add_command(label="Intensity vs Energy", command=lambda: self.i_vs_e_plot())
         filemenu.add_command(label='Impact Plot', command=lambda: self.impact_plot())
         filemenu.add_separator()
-        filemenu.add_command(label='Energy vs Theta Plot', command=lambda: self.e_vs_t_plot())
+        filemenu.add_command(label='Energy vs Theta Plot', command=lambda: self.e_vs_t_plot(fit=False))
+        filemenu.add_command(label='Energy vs Theta Plot - Fit', command=lambda: self.e_vs_t_plot(fit=True))
 
         #Creates Help menu
         helpmenu = tk.Menu(menu, tearoff=0)
@@ -172,6 +176,7 @@ class DetectGui:
             window.destroy()
         if self.last_run is not None:
             self.last_run()
+            self.last_run = None
 
     # Generates a window with options for editing floating point fields for thing
     # thing must have a _names_ attribute which is a map of <attr> to <name>, where
@@ -227,10 +232,12 @@ class DetectGui:
 
     # Selects the file to load from, will only show .input and .dbug files
     def select_file(self):
+        global root_path
         newfile = filedialog.askopenfilename(initialdir = root_path, title = "Select file",filetypes = (("SAFARI input spec",".input"),("SAFARI input spec",".dbug")))
         if newfile == '':
             return None
         self.filename = newfile
+        root_path = os.path.dirname(newfile)
         self.root.title("SAFARI Detect {}".format(self.filename))
         safio = safari_input.SafariInput(self.filename)
 
@@ -240,8 +247,8 @@ class DetectGui:
 
         if self.limits.last_phi != safio.PHI0:
             self.limits.last_phi = safio.PHI0
-            self.limits.p_max = safio.PHI0 + 5
-            self.limits.p_min = safio.PHI0 - 5
+            self.limits.p_max = safio.PHI0 + .5
+            self.limits.p_min = safio.PHI0 - .5
         
         if self.limits.last_e != safio.E0:
             self.limits.last_e = safio.E0
@@ -262,6 +269,9 @@ class DetectGui:
 
         self.dataset.plots = False
         self.dataset.pics = False
+
+        if self.last_run is not None:
+            self.last_run()
 
         return self.dataset
 
@@ -314,7 +324,7 @@ class DetectGui:
         self.canvas.get_tk_widget().pack(side="top",fill='both',expand=True)
 
     # Produces an energy vs theta plot, this requires the .spec file to exist.
-    def e_vs_t_plot(self):
+    def e_vs_t_plot(self, fit=False):
         
         # Select a file if we don't have one already.
         if self.dataset is None:
@@ -333,11 +343,51 @@ class DetectGui:
         spec = Spec(spec_file)
         spec.big_font = False
         spec.process_data(d_phi=self.limits.p_max-self.limits.p_min)
-        spec.make_e_t_plot(try_fit=False,do_plot=False)
+        spec.make_e_t_plot(do_plot=False)
 
         fig, ax = spec.fig, spec.ax
+
+        if fit:
+            e_max = spec.e_range[1]
+            e_min = spec.e_range[0]
+            t_min = spec.t_range[0]
+            t_max = spec.t_range[1]
+            axis = esa.make_axis(e_min, e_max, spec.energy, spec.img.shape[0]) * spec.energy
+            X = []
+            Y = []
+            S = []
+            for i in range(spec.img.shape[1]):
+                slyce = spec.img[:,i]
+                params = esa.fit_esa(slyce, axis,actualname=" fit", plot=False,min_h = max(np.max(slyce)/10,100),min_w=1)
+                # +0.5 to shift the point to the middle of the bin
+                T = load_spec.interp(i+0.5, spec.img.shape[1], t_min, t_max)
+                if params is not None and len(params) > 2:
+                    for j in range(2, len(params), 3):
+                        E = params[j+2]
+                        if E > spec.energy or E < 0:
+                            continue
+                        X.append(T)
+                        Y.append(E)
+                        S.append(abs(params[j+1]))
+                else:
+                    print("No fits at angle {}, {}".format(T, params))
+            if len(X) > 0:
+                ax.scatter(X,Y,c='y',s=4,label="Simulation")
+                ax.errorbar(X,Y,yerr=S, c='y',fmt='none',capsize=2)
+
+            # if data is not None:
+            #     theta, energy, err = esa.load_data(data)
+            #     ax.scatter(theta,energy,c='r',s=4,label="Data")
+            #     if err is not None:
+            #         ax.errorbar(theta,energy,yerr=err, c='r',fmt='none',capsize=2)
+            ax.legend()
+
+
         self.show_fig(fig)
         self.title_selected()
+
+        fig_name = spec_file.replace('.spec', '__fit_spec.png') if fit else spec_file.replace('.spec', '_spec.png')
+        fig.savefig(fig_name)
 
     # Produces an intensity vs energy plot
     def i_vs_e_plot(self):
