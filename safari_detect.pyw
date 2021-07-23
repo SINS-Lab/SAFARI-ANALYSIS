@@ -97,6 +97,9 @@ class DetectGui:
         self.limits = Limits()
         self.dsettings = Settings()
 
+        self.comparison_file = None
+        self.filename = None
+
         self.helpMessage ='Analysis code for SAFARI data files\nimport a data file using the File menu.'
         self.copyrightMessage ='Copyright © 2021 Patrick Johnson All Rights Reserved.'
         return
@@ -120,6 +123,7 @@ class DetectGui:
         filemenu.add_command(label="New Instance", command=lambda: spawn_gui())
         filemenu.add_separator()
         filemenu.add_command(label="Select File", command=lambda: self.select_file())
+        filemenu.add_command(label='Select Comparison Data', command=lambda: self.select_data())
         filemenu.add_separator()
         filemenu.add_command(label='Exit', command=lambda: self.exit_detect())
 
@@ -229,6 +233,15 @@ class DetectGui:
     # Sets title to saying loading, please wait
     def title_loading(self):
         self.root.title("SAFARI Detect: {}; Loading, Please Wait".format(self.filename))
+
+    def select_data(self):
+        global root_path
+        self.comparison_file = filedialog.askopenfilename(initialdir = root_path, title = "Select file",filetypes = (("Comparison Data Fits",".dat"),("Comparison Data Fits",".txt")))
+        if self.comparison_file == '':
+            self.comparison_file = None
+        if self.last_run is not None:
+            self.last_run()
+
 
     # Selects the file to load from, will only show .input and .dbug files
     def select_file(self):
@@ -358,11 +371,11 @@ class DetectGui:
             S = []
             for i in range(spec.img.shape[1]):
                 slyce = spec.img[:,i]
-                params = esa.fit_esa(slyce, axis,actualname=" fit", plot=False,min_h = max(np.max(slyce)/10,100),min_w=1)
+                params = esa.fit_esa(slyce, axis,actualname=" fit", plot=False,min_h = max(np.max(slyce)/50,10),min_w=5)
                 # +0.5 to shift the point to the middle of the bin
                 T = load_spec.interp(i+0.5, spec.img.shape[1], t_min, t_max)
                 if params is not None and len(params) > 2:
-                    for j in range(2, len(params), 3):
+                    for j in range(0, len(params), 3):
                         E = params[j+2]
                         if E > spec.energy or E < 0:
                             continue
@@ -372,15 +385,18 @@ class DetectGui:
                 else:
                     print("No fits at angle {}, {}".format(T, params))
             if len(X) > 0:
-                ax.scatter(X,Y,c='y',s=4,label="Simulation")
+                if self.comparison_file is not None:
+                    ax.scatter(X,Y,c='y',s=4,label="Simulation")
+                else:
+                    ax.scatter(X,Y,c='y',s=4,)
                 ax.errorbar(X,Y,yerr=S, c='y',fmt='none',capsize=2)
 
-            # if data is not None:
-            #     theta, energy, err = esa.load_data(data)
-            #     ax.scatter(theta,energy,c='r',s=4,label="Data")
-            #     if err is not None:
-            #         ax.errorbar(theta,energy,yerr=err, c='r',fmt='none',capsize=2)
-            ax.legend()
+            if self.comparison_file is not None:
+                theta, energy, err = esa.load_data(self.comparison_file)
+                ax.scatter(theta,energy,c='r',s=4,label="Data")
+                if err is not None:
+                    ax.errorbar(theta,energy,yerr=err, c='r',fmt='none',capsize=2)
+                ax.legend()
 
 
         self.show_fig(fig)
