@@ -21,8 +21,9 @@ def gaussian(x, a, sigma, mu):
 
 # This function is a linear + any number of gaussians
 def multiples(x, *params):
-    y = x * params[0] + params[1]
-    for i in range(2, len(params), 3):
+    # y = x * params[0] + params[1]
+    y = np.zeros(len(x))
+    for i in range(0, len(params), 3):
         a = params[i]
         sigma = params[i+1]
         mu = params[i+2]
@@ -35,49 +36,52 @@ def make_axis(emin, emax, e_0, size):
     dE = (end - start) / size
     return np.array([start + dE * x for x in range(size)])
 
-def fit_esa(values, axis, actualname=None, plot=True, min_h = 10, min_w = 1):
-    matched, properties = signal.find_peaks(values, prominence=min_h, width=min_w)
+def fit_esa(values, axis, actualname=None, plot=True, min_h = 10, min_w = 1, manual_params=None):
 
-    if len(matched) == 0:
-        print("No peaks found?")
-        return None
+    if manual_params is None:
+        matched, properties = signal.find_peaks(values, prominence=min_h, width=min_w)
 
-    width = properties['widths']
-    height = properties['prominences']
+        if len(matched) == 0:
+            print("No peaks found?")
+            return None
 
-    max_h = np.max(height)
-    peaks = []
-    widths = []
-    heights = []
+        width = properties['widths']
+        height = properties['prominences']
 
-    params = []
+        max_h = np.max(height)
+        peaks = []
+        widths = []
+        heights = []
 
-    dx = axis[len(axis)-1] - axis[0]
-    dy = values[len(axis)-1] - values[0]
+        params = []
 
-    m = dy/dx
-    b = values[0] - m * axis[0]
+        dx = axis[len(axis)-1] - axis[0]
+        dy = values[len(axis)-1] - values[0]
 
-    params.append(m)
-    params.append(b)
+        # m = dy/dx
+        # b = values[0] - m * axis[0]
 
+        # params.append(m)
+        # params.append(b)
+        
+        for i in range(len(matched)):
+            index = matched[i]
+            h = height[i]
+            if(h > min_h):
+                peaks.append(axis[index])
+                widths.append((axis[index]-axis[index-1])*width[i])
+                heights.append(height[i])
+                n = len(heights) - 1
+                h = values[index]
+                # We want half-width for guess at sigma
+                w = widths[n] / 2
+                u = axis[index]
+                params.append(h)
+                params.append(w)
+                params.append(u)
+    else:
+        params = manual_params
     
-    for i in range(len(matched)):
-        index = matched[i]
-        h = height[i]
-        if(h > min_h):
-            peaks.append(axis[index])
-            widths.append((axis[index]-axis[index-1])*width[i])
-            heights.append(height[i])
-            n = len(heights) - 1
-            h = values[index]
-            # We want half-width for guess at sigma
-            w = widths[n] / 2
-            u = axis[index]
-            params.append(h)
-            params.append(w)
-            params.append(u)
-
     x_min = np.min(axis)
     x_max = np.max(axis)
 
@@ -85,7 +89,20 @@ def fit_esa(values, axis, actualname=None, plot=True, min_h = 10, min_w = 1):
         popt, pcov = curve_fit(multiples, axis, values, p0=params)
     except:
         print("Convergance Error?")
-        traceback.print_exc()
+        # traceback.print_exc()
+        fig,ax = plt.subplots()
+
+        x_0 = axis
+        y_0 = multiples(x_0, *params)
+
+        ax.plot(axis, values, label='Data')
+        ax.plot(x_0, y_0, label='Initial Guess')
+        ax.set_xlabel('Energy (eV)')
+        ax.set_ylabel('Intensity')
+        ax.set_title(actualname)
+        ax.legend()
+        fig.show()
+
         return None
 
     x_0 = axis
@@ -99,9 +116,10 @@ def fit_esa(values, axis, actualname=None, plot=True, min_h = 10, min_w = 1):
     y_0 = multiples(x_0, *params)
     y_1 = multiples(x_0, *popt)
 
-    fit_label = 'R={:.5f}\nLinear: {:.2e}x+{:.2f}\n'.format(r, popt[0], popt[1])
+    # fit_label = 'R={:.5f}\nLinear: {:.2e}x+{:.2f}\n'.format(r, popt[0], popt[1])
+    fit_label = 'R={:.5f}\n'.format(r)
 
-    for i in range(2, len(popt), 3):
+    for i in range(0, len(popt), 3):
         fit_label = fit_label + 'Peak: I={:.2f},E={:.2f}eV,sigma={:.2f}eV\n'.format(popt[i], popt[i+2], abs(popt[i+1]))
 
 
@@ -132,64 +150,6 @@ def interp(y_b, y_a, x_b, x_a, x):
     dy_dx = (y_a-y_b)/(x_a-x_b)
     dy = dy_dx * (x - x_b)
     return y_b + dy
-
-def toRange(min_e, max_e, size, vals, val_min_e, val_max_e):
-    out = np.zeros(size)
-    dout = (max_e - min_e) / size
-
-
-    val_num = len(vals)
-    dval = (val_max_e-val_min_e) / val_num
-
-    val_index = 0
-    val_index_max = val_num - 1
-
-    for i in range(val_num):
-        e_here = val_min_e + i * dval
-        e_next = val_min_e + (i+1) * dval
-        if e_next > min_e and val_index == 0:
-            val_index = i
-            if val_index > 0:
-                val_index = val_index - 1
-        if e_next > max_e:
-            val_index_max = i
-            break
-
-
-    val = vals[val_index]
-
-
-    prev_val = vals[val_index]
-    prev_val_index = val_index
-
-    j = 0
-
-    for i in range(size):
-        e_here = min_e + i*dout
-
-        val_prev_e = val_min_e + prev_val_index * dval
-        while val_prev_e > e_here:
-            prev_val_index  = prev_val_index - 1
-            val_prev_e = val_min_e + prev_val_index * dval
-
-
-        val_next_e = val_min_e + val_index * dval
-        while val_next_e < e_here:
-            val_index  = val_index + 1
-            val_next_e = val_min_e + val_index * dval
-
-        val_index = min(val_index, val_num - 1)
-        prev_val_index = min(prev_val_index, val_num - 1)
-        val_index = max(val_index, 0)
-        prev_val_index = max(prev_val_index, 0)
-
-        val = vals[val_index]
-        prev_val = vals[prev_val_index]
-
-        out[i] = interp(prev_val, val, val_prev_e,\
-                                       val_next_e,\
-                                       e_here)
-    return out
 
 def load_data(compare_file):
     spec_file = open(compare_file, 'r')

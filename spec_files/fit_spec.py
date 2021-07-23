@@ -53,7 +53,7 @@ if __name__ == "__main__" :
         # +0.5 to shift the point to the middle of the bin
         T = load_spec.interp(i+0.5, img.shape[1], t_min, t_max)
         if params is not None and len(params) > 2:
-            for j in range(2, len(params), 3):
+            for j in range(0, len(params), 3):
                 E = params[j+2]
                 if E > spec.energy or E < 0:
                     continue
