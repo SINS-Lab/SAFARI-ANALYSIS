@@ -64,7 +64,7 @@ class Spec:
                     if P > self.phi - d_phi/2 and P < self.phi + d_phi/2:
                         self.img[n_E][n_T] = self.img[n_E][n_T] + row[n_P]
 
-    def make_e_t_plot(self, data=None, do_plot=True):
+    def make_e_t_plot(self, data=None, do_plot=True, do_norm = False,do_log = False):
         e_max = self.e_range[1]
         e_min = self.e_range[0]
         t_min = self.t_range[0]
@@ -78,14 +78,20 @@ class Spec:
 
         img = self.img
 
+        if do_log:
+            img = np.log(img + 1)
+            self.log_img = img
+        
+        self.norm_img = img/np.max(img)
+
+        if do_norm:
+            img = self.norm_img
+
         if self.big_font:
             plt.rcParams.update({'font.size': 20})
         
         fig, ax = plt.subplots(figsize=self.figsize)
         self.fig, self.ax = fig, ax
-
-        # log_im = np.log(img + 1)
-        # im = ax.imshow(log_im, interpolation="bicubic", extent=(t_min, t_max, e_max, e_min), cmap=plt.get_cmap('cividis'))
 
         im = ax.imshow(img, interpolation="bicubic", extent=(t_min, t_max, e_max, e_min), cmap=plt.get_cmap('cividis'))
         ax.invert_yaxis()
@@ -120,7 +126,7 @@ class Spec:
                     del vars[0]
                     # convert to numbers and stick in the array
                     data_row = [int(i) for i in vars]
-                    table.append(data_row)
+                    table.append(np.array(data_row))
         del self.detections[0]
 
     def load(self, file):
