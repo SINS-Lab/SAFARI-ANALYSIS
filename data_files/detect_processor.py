@@ -163,7 +163,7 @@ class Detector:
         self.safio = None
         self.plots = True
         self.pics = True
-
+        self.fig_name = None
         # These two are used for adjusting output file names.
         self.centre = 0
         self.width = 0
@@ -224,7 +224,7 @@ class Detector:
                 fig.savefig(file_name+'.png')
         return angles, intensity
         
-    def spectrumE(self, res, numpoints=512, write_file=True):
+    def spectrumE(self, res, numpoints=512, write_file=True, override_fig=None):
     
         res = res / self.safio.E0
         step = (self.safio.E0 - self.emin)/(numpoints * self.safio.E0)
@@ -251,6 +251,7 @@ class Detector:
         
         if write_file:
             file_name = template.format(self.outputprefix, self.emin, self.emax, res, self.centre, self.width)
+            self.fig_name = file_name + '.png'
             out = open(file_name+'.txt', 'w')
             out.write('energy\tintensity\tcounts\tk-factor\tscale\n')
             #This writes out the energy into a text file
@@ -262,55 +263,60 @@ class Detector:
                     out.write("{}\t{}\n".format(energy[i], intensity[i]))
             out.close()
         
-        fig, ax = plt.subplots(figsize=(8.0, 6.0))
+        if override_fig is None:
+            fig, ax = plt.subplots(figsize=(8.0, 6.0))
+        else:
+            fig, ax = override_fig
         
-        ax.plot(energy, intensity)
-        #ax.set_xlim(0,self.safio.E0)
-        ax.set_ylim(0,1)
-        ax.set_xlim(0,1)
-        
-        ax2 = ax.twiny()
-        ax2.set_xlim(0,self.safio.E0)
-        
-        identification = "{}; Counts: {}".format(self.outputprefix, len(eArr))
-        fig.text(0.0, 0.975, identification, fontsize=9)
-
-        print(identification)
-        
-        ax.set_xlabel('Energy (E/E0)')
-        ax.tick_params(direction="in", which='both')
-        ax2.set_xlabel('Energy (eV)')
-        ax2.tick_params(axis="x", direction="in")
-
-        ax.set_ylabel('Intensity')
-
-        self.added_kplot = True
         self.fig, self.ax = fig, ax
 
-        self.kplot, = ax.plot([k,k],[-1,2], label='k-Factor', c='orange')
-        ax.legend(handles=[self.kplot], loc='upper left')
+        # This is done to allow off-thread for the above, then an on-thread callback for actually generating the plot.
+        def prep_fig():
+            ax.plot(energy, intensity)
+            ax.set_ylim(0,1)
+            ax.set_xlim(0,1)
+            
+            ax2 = ax.twiny()
+            ax2.set_xlim(0,self.safio.E0)
+            
+            identification = "{}; Counts: {}".format(self.outputprefix, len(eArr))
+            fig.text(0.0, 0.975, identification, fontsize=9)
+            
+            ax.set_xlabel('Energy (E/E0)')
+            ax.tick_params(direction="in", which='both')
+            ax2.set_xlabel('Energy (eV)')
+            ax2.tick_params(axis="x", direction="in")
 
-        def on_click(event):
-            if self.added_kplot:
-                self.kplot.remove()
-                ax.get_legend().remove()
-            else:
-                self.kplot, = ax.plot([k,k],[-1,2], label='k-Factor', c='orange')
-                ax.legend(handles=[self.kplot], loc='upper left')
-            self.added_kplot = not self.added_kplot
-            fig.canvas.draw()
-            return
+            ax.set_ylabel('Intensity')
 
-        fig.canvas.mpl_connect('button_press_event', on_click)
+            self.added_kplot = True
+            self.fig, self.ax = fig, ax
+
+            self.kplot, = ax.plot([k,k],[-1,2], label='k-Factor', c='orange')
+            ax.legend(handles=[self.kplot], loc='upper left')
+
+            def on_click(event):
+                if self.added_kplot:
+                    self.kplot.remove()
+                    ax.get_legend().remove()
+                else:
+                    self.kplot, = ax.plot([k,k],[-1,2], label='k-Factor', c='orange')
+                    ax.legend(handles=[self.kplot], loc='upper left')
+                self.added_kplot = not self.added_kplot
+                fig.canvas.draw()
+                return
+            fig.canvas.mpl_connect('button_press_event', on_click)
+
+        self.prep_fig = prep_fig
 
         if self.plots or self.pics:
-
+            prep_fig()
             if self.plots:
                 fig.show()
                 
             #The following saves the plot as a png file
             if self.pics:
-                fig.savefig(file_name+'.png')
+                fig.savefig(self.fig_name)
         return energy, intensity, scale
 
     def run_single_shot(self, close, index, args):
@@ -350,8 +356,12 @@ class Detector:
             cmd = cmd[0] #Not sure why this was needed on windows...
         subprocess.Popen(cmd, shell=True)
         
-    def impactParam(self, basis=None, dx=0, dy=0):
-        fig, ax = plt.subplots(figsize=(12.0, 9.0))
+    def impactParam(self, basis=None, dx=0, dy=0, override_fig=None):
+        if override_fig is None:
+            fig, ax = plt.subplots(figsize=(12.0, 9.0))
+        else:
+            fig, ax = override_fig
+        
         self.fig, self.ax = fig, ax
         patches = []
         colours = []
@@ -375,13 +385,6 @@ class Detector:
             #Draw the basis
             ax.add_collection(p)
         
-            #Add a heightmap
-            hm = fig.colorbar(p, ax=ax)
-            hm.set_label("Site Z Coordinate (Angstroms)")
-        
-        ax.set_xlim(self.safio.XSTART, self.safio.XSTOP)
-        ax.set_ylim(self.safio.YSTART, self.safio.YSTOP)
-        
         #Draw the points        
         x = []
         y = []
@@ -391,139 +394,152 @@ class Detector:
             y = self.detections[..., 1]
             c = self.detections[..., 3]
         
+        # Do main drawing on this thread
         scat = ax.scatter(x, y, c=c, cmap=plt.get_cmap('plasma'))
-        cb = fig.colorbar(scat, ax=ax)
-        cb.set_label("Final Energy (eV)")
 
-        tool_text = "Left Click: View Point\nDouble Left Click: Open Normal-Colored VMD\nDouble Right Click: Open Nearest-Colored VMD\nShift + Left Click: Open Velocity-Colored VMD"
-        select_text = 'None Selected'
-        #Add selected point label
-        self.text_selected = fig.text(0.1, 0.95, select_text, fontsize=9)
-        
-        ax.set_title("Detections: "+str(len(x)))
-        ax.set_xlabel('X Target (Angstroms)')
-        ax.set_ylabel('Y Target (Angstroms)')
+        def prep_fig():
+            if basis is not None:
+                #Add a heightmap
+                hm = fig.colorbar(p, ax=ax)
+                hm.set_label("Site Z Coordinate (Angstroms)")
 
-        self.text_tooltip = fig.text(0.6, 0.9, tool_text, fontsize=9)
+            cb = fig.colorbar(scat, ax=ax)
+            cb.set_label("Final Energy (eV)")
 
-        #Make the selected item indicator
-        px = 0
-        py = 0
-        self.p, = ax.plot(px,py,'r+')
-
-        #Add an arrow indicating the beam direction
-        dir = [1,0]
-        lx = (self.safio.XSTOP - self.safio.XSTART) / 10
-        ly = (self.safio.YSTOP - self.safio.YSTART) / 10
-        #Adds some padding to start location
-        start = [self.safio.XSTART + lx/2,self.safio.YSTART + ly/2]
-        dir[0] = math.cos(math.radians(self.safio.PHI0))
-        dir[1] = math.sin(math.radians(self.safio.PHI0))
-
-        if dir[0] < 0:
-            #Also padd ends
-            start[0] = self.safio.XSTOP - lx/2
-        if dir[1] < 0:
-            #Also padd ends
-            start[1] = self.safio.YSTOP - ly/2
-        d_arrow = [0,0]
-        d_arrow[0] = dir[0] * lx
-        d_arrow[1] = dir[1] * ly
-        w =  max(lx, ly)/10
-        hw = max(lx, ly)/5
-        hl = max(lx, ly)/5
-
-        self.arrow = ax.arrow(start[0], start[1], d_arrow[0], d_arrow[1], width=w, head_width=hw, head_length=hl, color='c', visible=len(x)>0)
-        
-        def onclick(event):
-            if event.xdata is None or not tooltips:
-                return
-
-            close = [1e20, 1e20]
-            distsq = close[0]**2 + close[1]**2
-            index = -1
-            ion_index = -1
-
-            for i in range(len(x)):
-                dxsq = (x[i]-event.xdata)**2
-                dysq = (y[i]-event.ydata)**2
-                if distsq > dxsq + dysq:
-                    distsq = dxsq + dysq
-                    close[0] = x[i]
-                    close[1] = y[i]
-                    index = i
-                    ion_index = self.detections[..., 6][i]
-            ion_index = int(ion_index)
-            if event.dblclick and event.button == 1 and not shift_is_held:
-                print("Setting up a safari run for a single shot")
-                # Setup a single run safari for this.
-                self.run_single_shot(close, ion_index,\
-                                self.ss_cmd + ' -i {} -o {} -x {} -y {} -s {} -r')
-            if event.dblclick and event.button == 3:
-                # Setup a single run safari using nearness colored data
-                print("Setting up a safari run for a nearness colored dataset")
-                # Setup a single run safari for this.
-                self.run_single_shot(close, ion_index,\
-                                self.ss_cmd + ' -i {} -o {} -x {} -y {} -s {} -r -c nearby')
-            if event.button == 1 and shift_is_held:
-                # Setup a single run safari using velocity colored data
-                print("Setting up a safari run for a velocity colored dataset")
-                # Setup a single run safari for this.
-                self.run_single_shot(close, ion_index,\
-                                self.ss_cmd + ' -i {} -o {} -x {} -y {} -s {} -r -c velocity')
+            tool_text = "Left Click: View Point\nDouble Left Click: Open Normal-Colored VMD\nDouble Right Click: Open Nearest-Colored VMD\nShift + Left Click: Open Velocity-Colored VMD"
+            select_text = 'None Selected'
+            #Add selected point label
+            self.text_selected = fig.text(0.1, 0.95, select_text, fontsize=9)
             
-            close[0] = round(close[0], 5)
-            close[1] = round(close[1], 5)
-            energy = round(self.detections[index][3], 2)
-            angle = round(self.detections[index][4], 1)
-            select_text = '{}, {}eV ({}), {}°, {}'.format(close, energy, round(energy/self.safio.E0,3), angle, ion_index)
-            self.text_selected.set_text(select_text)
-            px = close[0]
-            py = close[1]
-            self.p.set_xdata([px])
-            self.p.set_ydata([py])
-            fig.canvas.draw()
+            ax.set_title("Detections: "+str(len(x)))
+            ax.set_xlabel('X Target (Angstroms)')
+            ax.set_ylabel('Y Target (Angstroms)')
+            ax.set_xlim(self.safio.XSTART, self.safio.XSTOP)
+            ax.set_ylim(self.safio.YSTART, self.safio.YSTOP)
 
-        def on_key_press(event):
-            if event.key == 'shift':
-                global shift_is_held
-                shift_is_held = True
-            if event.key == 'alt':
-                global tooltips
-                tooltips = not tooltips
-                if not tooltips:
-                    text_selected.set_text('')
-                    text_tooltip.set_text('')
-                    self.p.set_xdata([-1e20])
-                    self.p.set_ydata([0])
-                    fig.canvas.draw()
-                else:
-                    text_selected.set_text(select_text)
-                    text_tooltip.set_text(tool_text)
-                    self.p.set_xdata([px])
-                    self.p.set_ydata([py])
-                    fig.canvas.draw()
+            self.text_tooltip = fig.text(0.6, 0.9, tool_text, fontsize=9)
 
-        def on_key_release(event):
-            if event.key == 'shift':
-                global shift_is_held
-                shift_is_held = False
+            #Make the selected item indicator
+            px = 0
+            py = 0
+            self.p, = ax.plot(px,py,'r+')
 
-        fig.canvas.mpl_connect('key_press_event', on_key_press)
-        fig.canvas.mpl_connect('key_release_event', on_key_release)
-        fig.canvas.mpl_connect('button_press_event', onclick)
+            #Add an arrow indicating the beam direction
+            dir = [1,0]
+            lx = (self.safio.XSTOP - self.safio.XSTART) / 10
+            ly = (self.safio.YSTOP - self.safio.YSTART) / 10
+            #Adds some padding to start location
+            start = [self.safio.XSTART + lx/2,self.safio.YSTART + ly/2]
+            dir[0] = math.cos(math.radians(self.safio.PHI0))
+            dir[1] = math.sin(math.radians(self.safio.PHI0))
+
+            if dir[0] < 0:
+                #Also padd ends
+                start[0] = self.safio.XSTOP - lx/2
+            if dir[1] < 0:
+                #Also padd ends
+                start[1] = self.safio.YSTOP - ly/2
+            d_arrow = [0,0]
+            d_arrow[0] = dir[0] * lx
+            d_arrow[1] = dir[1] * ly
+            w =  max(lx, ly)/10
+            hw = max(lx, ly)/5
+            hl = max(lx, ly)/5
+
+            self.arrow = ax.arrow(start[0], start[1], d_arrow[0], d_arrow[1], width=w, head_width=hw, head_length=hl, color='c', visible=len(x)>0)
+            
+            def onclick(event):
+                if event.xdata is None or not tooltips:
+                    return
+
+                close = [1e20, 1e20]
+                distsq = close[0]**2 + close[1]**2
+                index = -1
+                ion_index = -1
+
+                for i in range(len(x)):
+                    dxsq = (x[i]-event.xdata)**2
+                    dysq = (y[i]-event.ydata)**2
+                    if distsq > dxsq + dysq:
+                        distsq = dxsq + dysq
+                        close[0] = x[i]
+                        close[1] = y[i]
+                        index = i
+                        ion_index = self.detections[..., 6][i]
+                ion_index = int(ion_index)
+                if event.dblclick and event.button == 1 and not shift_is_held:
+                    print("Setting up a safari run for a single shot")
+                    # Setup a single run safari for this.
+                    self.run_single_shot(close, ion_index,\
+                                    self.ss_cmd + ' -i {} -o {} -x {} -y {} -s {} -r')
+                if event.dblclick and event.button == 3:
+                    # Setup a single run safari using nearness colored data
+                    print("Setting up a safari run for a nearness colored dataset")
+                    # Setup a single run safari for this.
+                    self.run_single_shot(close, ion_index,\
+                                    self.ss_cmd + ' -i {} -o {} -x {} -y {} -s {} -r -c nearby')
+                if event.button == 1 and shift_is_held:
+                    # Setup a single run safari using velocity colored data
+                    print("Setting up a safari run for a velocity colored dataset")
+                    # Setup a single run safari for this.
+                    self.run_single_shot(close, ion_index,\
+                                    self.ss_cmd + ' -i {} -o {} -x {} -y {} -s {} -r -c velocity')
+                
+                close[0] = round(close[0], 5)
+                close[1] = round(close[1], 5)
+                energy = round(self.detections[index][3], 2)
+                angle = round(self.detections[index][4], 1)
+                select_text = '{}, {}eV ({}), {}°, {}'.format(close, energy, round(energy/self.safio.E0,3), angle, ion_index)
+                self.text_selected.set_text(select_text)
+                px = close[0]
+                py = close[1]
+                self.p.set_xdata([px])
+                self.p.set_ydata([py])
+                fig.canvas.draw()
+
+            def on_key_press(event):
+                if event.key == 'shift':
+                    global shift_is_held
+                    shift_is_held = True
+                if event.key == 'alt':
+                    global tooltips
+                    tooltips = not tooltips
+                    if not tooltips:
+                        text_selected.set_text('')
+                        text_tooltip.set_text('')
+                        self.p.set_xdata([-1e20])
+                        self.p.set_ydata([0])
+                        fig.canvas.draw()
+                    else:
+                        text_selected.set_text(select_text)
+                        text_tooltip.set_text(tool_text)
+                        self.p.set_xdata([px])
+                        self.p.set_ydata([py])
+                        fig.canvas.draw()
+
+            def on_key_release(event):
+                if event.key == 'shift':
+                    global shift_is_held
+                    shift_is_held = False
+
+            fig.canvas.mpl_connect('key_press_event', on_key_press)
+            fig.canvas.mpl_connect('key_release_event', on_key_release)
+            fig.canvas.mpl_connect('button_press_event', onclick)
         
-        if self.plots:
-            fig.show()
+        self.prep_fig = prep_fig
+        if self.plots or self.pics:
+            prep_fig()
+            if self.plots:
+                fig.show()
 
-        if self.pics:
-            file_name = self.outputprefix\
-                  + 'Imapct-'\
-                  + str(self.emin) + '-'\
-                  + str(self.emax) + '_'\
-                  + str(self.tmin) + '-'\
-                  + str(self.tmax)
-            fig.savefig(file_name+'.png')
+            if self.pics:
+                file_name = self.outputprefix\
+                    + 'Imapct-'\
+                    + str(self.emin) + '-'\
+                    + str(self.emax) + '_'\
+                    + str(self.tmin) + '-'\
+                    + str(self.tmax)
+                fig.savefig(file_name+'.png')
         
 class StripeDetector(Detector):
     

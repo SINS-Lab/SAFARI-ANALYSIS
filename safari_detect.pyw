@@ -25,27 +25,41 @@ global root_path
 
 root_path = os.path.expanduser(".")
 
-font_12 = ('Times New Roman', 12)
-font_14 = ('Times New Roman', 14)
-font_16 = ('Times New Roman', 16)
-font_18 = ('Times New Roman', 18)
-font_20 = ('Times New Roman', 20)
+if platform.system() == 'Windows':
+    font_12 = ('Times New Roman', 12)
+    font_14 = ('Times New Roman', 14)
+    font_16 = ('Times New Roman', 16)
+    font_18 = ('Times New Roman', 18)
+    font_20 = ('Times New Roman', 20)
 
-plt.rcParams.update({'font.family': 'Times New Roman'})
+    plt.rcParams.update({'font.family': 'Times New Roman'})
+else:
+    font_12 = ('DejaVu Sans', 12)
+    font_14 = ('DejaVu Sans', 14)
+    font_16 = ('DejaVu Sans', 16)
+    font_18 = ('DejaVu Sans', 18)
+    font_20 = ('DejaVu Sans', 20)
+
+    plt.rcParams.update({'font.family': 'DejaVu Sans'})
+
+
+
 plt.rcParams.update({'font.size': 18})
 
-processes = []
+instances = []
 
 # Constructs and starts an instance of the gui
 def spawn_gui_proc():
     gui = DetectGui()
-    gui.start()
+    root = None
+    if len(instances) != 0:
+        root = tk.Toplevel(instances[0].root)
+    instances.append(gui)
+    gui.start(root=root)
 
 # Starts an instance of the gui as a new process
 def spawn_gui():
-    p = threading.Thread(target=spawn_gui_proc)
-    p.start()
-    processes.append(p)
+    spawn_gui_proc()
 
 # Detector limits object
 class Limits:
@@ -100,14 +114,19 @@ class DetectGui:
         self.comparison_file = None
         self.filename = None
 
+        self.fig, self.prep_fig = None, None
+
         self.helpMessage ='Analysis code for SAFARI data files\nimport a data file using the File menu.'
         self.copyrightMessage ='Copyright © 2021 Patrick Johnson All Rights Reserved.'
         return
 
     # Starts the tk application, adds the file menus, etc
-    def start(self):
-        self.root = tk.Tk()
-        
+    def start(self, root=None):
+        if root == None:
+            self.root = tk.Tk()
+        else:
+            self.root = root
+
         menu = tk.Menu(self.root)
         self.root.config(menu=menu)
 
@@ -147,7 +166,9 @@ class DetectGui:
         menu.add_cascade(label='Help', menu=helpmenu)
         helpmenu.add_command(label='About', command= lambda: self.about())
 
-        self.root.mainloop()
+        self.root.after(500, self.check_figs)
+        if root == None:
+            self.root.mainloop()
 
     #Opens About Window with description of software
     def about(self):
@@ -228,11 +249,17 @@ class DetectGui:
 
     # Sets title to showing current input file
     def title_selected(self):
-        self.root.title("SAFARI Detect: {}".format(self.filename))
+        self.title_text('')
 
     # Sets title to saying loading, please wait
     def title_loading(self):
-        self.root.title("SAFARI Detect: {}; Loading, Please Wait".format(self.filename))
+        self.title_text(': {}; Loading, Please Wait'.format(self.filename))
+
+    def title_text(self, text):
+        if text.strip() != '':
+            self.root.title("SAFARI Detect {}; {}".format(self.filename, text))
+        else:
+            self.root.title("SAFARI Detect {}".format(self.filename))
 
     def select_data(self):
         global root_path
@@ -306,9 +333,19 @@ class DetectGui:
         self.title_selected()
         
         self.dataset.plots = False
-        self.dataset.pics = True
+        self.dataset.pics = False
         self.detector.plots = False
-        self.detector.pics = True
+        self.detector.pics = False
+
+    def check_figs(self):
+        if self.fig is not None:
+            self.prep_fig()
+            self.show_fig(self.fig)
+            if self.fig_name is not None:
+                self.fig.savefig(self.fig_name)
+                self.fig_name = None
+            self.fig = None
+        self.root.after(100, self.check_figs)
 
     # Displays the matplotlib figure fig in the main window
     def show_fig(self, fig):
@@ -349,61 +386,45 @@ class DetectGui:
                 self.dataset = ret
 
         self.last_run = self.e_vs_t_plot
+
+        self.fig = None
+        fig, ax = plt.subplots(figsize=(12.0, 9.0))
         
-        self.title_loading()
+        # Wraps this for a separate thread, allowing off-thread processing, but still running all of the matplotlib stuff on the main thread
+        def do_work():
+            self.title_loading()
+            spec_file = self.filename.replace('.input','').replace('.dbug','')+'.spec'
+            spec = Spec(spec_file)
+            spec.fig, spec.ax = fig, ax
+            spec.big_font = False
+            spec.process_data(d_phi=self.limits.p_max-self.limits.p_min)
+            spec.make_e_t_plot(do_plot=False)
 
-        spec_file = self.filename.replace('.input','').replace('.dbug','')+'.spec'
-        spec = Spec(spec_file)
-        spec.big_font = False
-        spec.process_data(d_phi=self.limits.p_max-self.limits.p_min)
-        spec.make_e_t_plot(do_plot=False)
-
-        fig, ax = spec.fig, spec.ax
-
-        if fit:
-            e_max = spec.e_range[1]
-            e_min = spec.e_range[0]
-            t_min = spec.t_range[0]
-            t_max = spec.t_range[1]
-            axis = esa.make_axis(e_min, e_max, spec.energy, spec.img.shape[0]) * spec.energy
-            X = []
-            Y = []
-            S = []
-            for i in range(spec.img.shape[1]):
-                slyce = spec.img[:,i]
-                params = esa.fit_esa(slyce, axis,actualname=" fit", plot=False,min_h = max(np.max(slyce)/50,10),min_w=5)
-                # +0.5 to shift the point to the middle of the bin
-                T = load_spec.interp(i+0.5, spec.img.shape[1], t_min, t_max)
-                if params is not None and len(params) > 2:
-                    for j in range(0, len(params), 3):
-                        E = params[j+2]
-                        if E > spec.energy or E < 0:
-                            continue
-                        X.append(T)
-                        Y.append(E)
-                        S.append(abs(params[j+1]))
-                else:
-                    print("No fits at angle {}, {}".format(T, params))
-            if len(X) > 0:
+            if fit:
+                self.title_text('Fitting, Please Wait')
+                e_max = spec.e_range[1]
+                e_min = spec.e_range[0]
+                t_min = spec.t_range[0]
+                t_max = spec.t_range[1]
+                axis = esa.make_axis(e_min, e_max, spec.energy, spec.img.shape[0]) * spec.energy
+                spec.try_fit(esa.fit_esa, axis, ax)
                 if self.comparison_file is not None:
-                    ax.scatter(X,Y,c='y',s=4,label="Simulation")
-                else:
-                    ax.scatter(X,Y,c='y',s=4,)
-                ax.errorbar(X,Y,yerr=S, c='y',fmt='none',capsize=2)
+                    theta, energy, err = esa.load_data(self.comparison_file)
+                    ax.scatter(theta,energy,c='r',s=4,label="Data")
+                    if err is not None:
+                        ax.errorbar(theta,energy,yerr=err, c='r',fmt='none',capsize=2)
+                    ax.legend()
 
-            if self.comparison_file is not None:
-                theta, energy, err = esa.load_data(self.comparison_file)
-                ax.scatter(theta,energy,c='r',s=4,label="Data")
-                if err is not None:
-                    ax.errorbar(theta,energy,yerr=err, c='r',fmt='none',capsize=2)
-                ax.legend()
+            # Here we update these to indicate that we have finished processing
+            self.prep_fig = spec.prep_fig
+            self.fig_name = spec_file.replace('.spec', '_fit_spec.png')
+            self.fig = fig
+            # Reset title to selected now that we are done
+            self.title_selected()
+        # Schedule this on a worker thread
+        thread = threading.Thread(target=do_work)
+        thread.start()
 
-
-        self.show_fig(fig)
-        self.title_selected()
-
-        fig_name = spec_file.replace('.spec', '__fit_spec.png') if fit else spec_file.replace('.spec', '_spec.png')
-        fig.savefig(fig_name)
 
     # Produces an intensity vs energy plot
     def i_vs_e_plot(self):
@@ -418,13 +439,23 @@ class DetectGui:
                 self.dataset = ret
 
         self.last_run = self.i_vs_e_plot
-        self.init_data()
 
-        self.title_loading()
-        energy, intensity, scale = self.detector.spectrumE(res=self.detector.safio.ESIZE)
-        fig, ax = self.detector.fig, self.detector.ax
-        self.show_fig(fig)
-        self.title_selected()
+        plots = plt.subplots(figsize=(8.0, 6.0))
+
+        # Wraps this for a separate thread, allowing off-thread processing, but still running all of the matplotlib stuff on the main thread
+        def do_work():
+            self.title_loading()
+            self.init_data()
+            self.title_text('Processing, Please Wait')
+            energy, intensity, scale = self.detector.spectrumE(res=self.detector.safio.ESIZE, override_fig=plots)
+            # Here we update these to indicate that we have finished processing
+            self.prep_fig = self.detector.prep_fig
+            self.fig_name = self.detector.fig_name
+            self.fig = self.detector.fig
+            self.title_selected()
+        # Schedule this on a worker thread
+        thread = threading.Thread(target=do_work)
+        thread.start()
 
     # Produces an impact plot
     def impact_plot(self):
@@ -439,17 +470,29 @@ class DetectGui:
                 self.dataset = ret
             
         self.last_run = self.impact_plot
-        self.init_data()
 
-        self.title_loading()
-        self.detector.impactParam(basis=self.dataset.crystal)
-        fig, ax = self.detector.fig, self.detector.ax
-        self.show_fig(fig)
-        self.title_selected()
+        plots = plt.subplots(figsize=(12.0, 9.0))
+
+        # Wraps this for a separate thread, allowing off-thread processing, but still running all of the matplotlib stuff on the main thread
+        def do_work():
+            self.title_loading()
+            self.init_data()
+            self.title_text('Processing, Please Wait')
+            self.detector.impactParam(basis=self.dataset.crystal, override_fig=plots)
+            fig, ax = self.detector.fig, self.detector.ax
+            # Here we update these to indicate that we have finished processing
+            self.prep_fig = self.detector.prep_fig
+            self.fig_name = self.detector.fig_name
+            self.fig = self.detector.fig
+            # Switch to finished title
+            self.title_selected()
+        # Schedule this on a worker thread
+        thread = threading.Thread(target=do_work)
+        thread.start()
 
 def start():
-    if len(processes) == 0:
-        spawn_gui()
+    if len(instances) == 0:
+        spawn_gui_proc()
 
 if __name__ == '__main__':
     start()

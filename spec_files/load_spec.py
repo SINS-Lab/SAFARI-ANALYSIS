@@ -16,6 +16,10 @@ class Spec:
         self.e_range = [0,0]
         self.t_range = [0,0]
         self.p_range = [0,0]
+        self.file = file
+
+        self.fig, ax = None, None
+
         self.load(file)
         self.img = None
         self.theta_phi = None
@@ -64,7 +68,7 @@ class Spec:
                     if P > self.phi - d_phi/2 and P < self.phi + d_phi/2:
                         self.img[n_E][n_T] = self.img[n_E][n_T] + row[n_P]
 
-    def make_e_t_plot(self, data=None, do_plot=True, do_norm = False,do_log = False):
+    def make_e_t_plot(self, data=None, do_plot=True, do_norm = True,do_log = True, do_fits=False):
         e_max = self.e_range[1]
         e_min = self.e_range[0]
         t_min = self.t_range[0]
@@ -78,32 +82,46 @@ class Spec:
 
         img = self.img
 
+        in_plot = np.sum(img)
+
+        if do_plot:
+            file_name = self.file.replace('.spec', '_raw_img.png')
+            matplotlib.image.imsave(file_name, img)
+
+        self.log_img = np.log(img + 1)
         if do_log:
-            img = np.log(img + 1)
-            self.log_img = img
+            img = self.log_img
         
         self.norm_img = img/np.max(img)
 
         if do_norm:
             img = self.norm_img
-
-        if self.big_font:
-            plt.rcParams.update({'font.size': 20})
         
-        fig, ax = plt.subplots(figsize=self.figsize)
-        self.fig, self.ax = fig, ax
+        if self.fig == None:
+            fig, ax = plt.subplots(figsize=self.figsize)
+            self.fig, self.ax = fig, ax
+        else:
+            fig, ax = self.fig, self.ax
 
-        im = ax.imshow(img, interpolation="bicubic", extent=(t_min, t_max, e_max, e_min), cmap=plt.get_cmap('cividis'))
-        ax.invert_yaxis()
-        ax.set_aspect(aspect=del_t/del_e)
-        cb = fig.colorbar(im, ax=ax)
-        cb.set_label("Counts")
-        ax.set_title("Energy vs Theta")
-        ax.set_xlabel('Outgoing angle (Degrees)')
-        ax.set_ylabel('Outgoing Energy (eV)')
+        def prep_fig():
+            if self.big_font:
+                plt.rcParams.update({'font.size': 20})
+            im = ax.imshow(img, interpolation="bicubic", extent=(t_min, t_max, e_max, e_min), cmap=plt.get_cmap('cividis'))
+            ax.invert_yaxis()
+            ax.set_aspect(aspect=del_t/del_e)
+            cb = fig.colorbar(im, ax=ax)
+            cb.set_label("Counts")
+            ax.set_title("Energy vs Theta {}".format(in_plot))
+            ax.set_xlabel('Outgoing angle (Degrees)')
+            ax.set_ylabel('Outgoing Energy (eV)')
         
+        self.prep_fig = prep_fig
+
         if do_plot:
+            prep_fig()
             fig.show()
+            file_name = self.file.replace('.spec', '_displayed_img.png')
+            matplotlib.image.imsave(file_name, img)
 
     def parse_data(self, data):
         rows = data.split('\n')
@@ -132,12 +150,50 @@ class Spec:
     def load(self, file):
         spec_file = open(file, 'r')
         entire_file = spec_file.read()
+        spec_file.close()
         components = entire_file.split('--------------------------------------------------------')
         header = components[1]
         data = components[2]
         self.parse_header(header)
         self.parse_data(data)
 
+    def h_func(slyce):
+        return max(np.max(slyce)/100,5)
+
+    def w_func(slyce):
+        return 5
+
+    def try_fit(self, fit_func, xaxis, ax, guess_params=None, min_h=h_func,min_w=w_func):
+        t_min = self.t_range[0]
+        t_max = self.t_range[1]
+        X = []
+        Y = []
+        S = []
+        H = []
+        for i in range(self.img.shape[1]):
+            slyce = self.img[:,i]
+            params = fit_func(slyce, xaxis, actualname=" fit", plot=False,min_h=min_h(slyce),min_w=min_w(slyce)) if guess_params is None else fit_func(slyce, xaxis, actualname=" fit", plot=False,min_h=min_h(slyce),min_w=min_w(slyce), manual_params=guess_params[i])
+            # +0.5 to shift the point to the middle of the bin
+            T = interp(i+0.5, self.img.shape[1], t_min, t_max)
+            if params is not None and len(params) > 2:
+                for j in range(0, len(params), 3):
+                    E = params[j+2]
+                    if E > self.energy or E < 0:
+                        continue
+                    X.append(T)
+                    Y.append(E)
+                    S.append(abs(params[j+1]))
+                    H.append(abs(params[j]))
+            else:
+                print("No fits at angle {}, {}".format(T, params))
+        if len(X) > 0:
+            ax.scatter(X,Y,c='y',s=4,label="Simulation")
+            ax.errorbar(X,Y,yerr=S, c='y',fmt='none',capsize=2)
+            fit_file = open(self.file.replace('.spec', '_fits.dat'), 'w')
+            fit_file.write('Angle(Degrees)\tEnergy(eV)\tWidth(eV)\tScale\n')
+            for i in range(len(X)):
+                fit_file.write('{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\n'.format(X[i]-0.5,Y[i],S[i],H[i]))
+            fit_file.close()
 
 if __name__ == "__main__" :
     spec = Spec('./test.spec')
