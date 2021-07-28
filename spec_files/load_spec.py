@@ -119,7 +119,10 @@ class Spec:
             ax.invert_yaxis()
             ax.set_aspect(aspect=del_t/del_e)
             cb = fig.colorbar(im, ax=ax)
-            cb.set_label("Counts")
+            if do_log:
+                cb.set_label("Relative Log Intensity")
+            else:
+                cb.set_label("Counts")
             ax.set_title("Energy vs Theta {}".format(in_plot))
             ax.set_xlabel('Outgoing angle (Degrees)')
             ax.set_ylabel('Outgoing Energy (eV)')

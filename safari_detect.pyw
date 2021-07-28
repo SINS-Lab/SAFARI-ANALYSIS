@@ -255,7 +255,7 @@ class DetectGui:
 
     # Sets title to saying loading, please wait
     def title_loading(self):
-        self.title_text(': {}; Loading, Please Wait'.format(self.filename))
+        self.title_text('Loading, Please Wait')
 
     def title_text(self, text):
         if text.strip() != '':
