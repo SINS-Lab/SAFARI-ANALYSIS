@@ -36,23 +36,26 @@ def make_axis(emin, emax, e_0, size):
     dE = (end - start) / size
     return np.array([start + dE * x for x in range(size)])
 
-def peak_finder(values, axis, min_h = 10, min_w = 1, grad=True, integrate=None):
+def peak_finder(values, axis, min_h = 10, min_w = 1, grad=True, integrate=None, winv=5):
 
+    # In this case, we will use the second derivative for peak finding.
     if grad:
-        derivative = -np.gradient(values)
+        derivative = np.gradient(values)
         derivative -= np.min(derivative)
         derivative /= np.max(derivative)
 
-        grad2 = np.gradient(derivative)
+        # We want the - gradient here as we are looking for "peaks"
+        grad2 = -np.gradient(derivative)
         grad2 = grad2.clip(0)
         grad2 /= (np.max(grad2) - np.min(grad2))
 
         # Apply the gaussian integration function to smooth out the 2nd derivative plot
         if integrate is not None:
-            winv = 5
             grad2, scale = integrate(len(grad2), winv, axis, grad2, axis)
         
+        # We clipped earlier, and then smoothed out, so 0 should be fine for this.
         min_h = 0.0
+        # This is width in grid points, 1 or 2 is probably fine, much larger will miss very narrow peaks as in 0K simulations
         min_w = 1
 
         matched, properties = signal.find_peaks(grad2, prominence=min_h, width=min_w)
@@ -74,10 +77,17 @@ def peak_finder(values, axis, min_h = 10, min_w = 1, grad=True, integrate=None):
     dx = axis[len(axis)-1] - axis[0]
     dy = values[len(axis)-1] - values[0]
 
+    # Compile some initial guesses
     for i in range(len(matched)):
         index = matched[i]
         h = height[i]
         w = (axis[index]-axis[index-1])*width[i]
+        # For non-deriviative fitting, this returns
+        # the full-width of the entire peak, we want
+        # at the mid point, so dividing by 2 gives
+        # a better initial guess.
+        if not grad:
+            w /= 2
         h = height[i] * max_h
         u = axis[index]
         params.append(h)
@@ -85,10 +95,10 @@ def peak_finder(values, axis, min_h = 10, min_w = 1, grad=True, integrate=None):
         params.append(u)
     return params
 
-def fit_esa(values, axis, actualname=None, plot=True, min_h = 10, min_w = 1, manual_params=None, guess_func=peak_finder, fit_func=multiples, integrate=None):
+def fit_esa(values, axis, actualname=None, plot=True, min_h = 10, min_w = 1, manual_params=None, guess_func=peak_finder, fit_func=multiples, integrate=None, winv=5):
 
     if manual_params is None:
-        params = peak_finder(values, axis, min_h, min_w, integrate=integrate)
+        params = peak_finder(values, axis, min_h, min_w, integrate=integrate, winv=winv)
         if params is None:
             return None, fit_func, 'no peaks'
     else:
@@ -125,7 +135,6 @@ def fit_esa(values, axis, actualname=None, plot=True, min_h = 10, min_w = 1, man
 
     x_0 = np.array(make_axis(axis[0], axis[-1], 1, 512))
 
-    # fit_label = 'R={:.5f}\nLinear: {:.2e}x+{:.2f}\n'.format(r, popt[0], popt[1])
     fit_label = 'R={:.5f}\n'.format(r)
 
     for i in range(0, len(popt), 3):

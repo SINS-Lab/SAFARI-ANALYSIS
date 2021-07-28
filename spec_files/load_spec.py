@@ -124,7 +124,9 @@ class Spec:
             ax.set_xlabel('Outgoing angle (Degrees)')
             ax.set_ylabel('Outgoing Energy (eV)')
 
+
             if do_fits:
+                # This will result in displaying the plot for the particular column of the image when the column is double clicked.
                 def onclick(event):
                     if event.dblclick and event.button == 1:
                         fig2, (ax2,ax3) = plt.subplots(1,2)
@@ -133,14 +135,16 @@ class Spec:
                             slyce, (params, xaxis, fit_type) = self.fits[T]
                             ax2.plot(xaxis, slyce,label="Raw")
 
-                            grad = -np.gradient(slyce)
-                            grad /= (np.max(grad) - np.min(grad))
+                            grad = np.gradient(slyce)
+                            grad -= np.min(grad)
+                            grad /= np.max(grad)
 
-                            grad2 = np.gradient(grad)
+                            grad2 = -np.gradient(grad)
                             grad2 = grad2.clip(0)
                             grad2 /= (np.max(grad2) - np.min(grad2))
 
-                            winv = 5
+                            winv = self.winv
+                            # Smooth out the second derivative plot
                             grad2, scale = self.integrate(len(grad2), winv, xaxis, grad2, xaxis)
 
                             min_h = 0.01
@@ -152,12 +156,14 @@ class Spec:
 
                             peak_params = self.peak_finder(slyce, xaxis, min_h, min_w, integrate=self.integrate)
 
+                            # Plot the guess
                             if peak_params is not None:
                                 fit_label = 'Guess\n'
                                 for i in range(0, len(peak_params), 3):
                                     fit_label = fit_label + 'Peak: I={:.2f},E={:.2f}eV,sigma={:.2f}eV\n'.format(abs(peak_params[i]), peak_params[i+2], abs(peak_params[i+1]))
                                 ax2.plot(xaxis, fit_type(xaxis, *peak_params),label=fit_label)
 
+                            # Plot the fit
                             if params is not None:
                                 fit_label = 'Fit\n'
                                 for i in range(0, len(params), 3):
@@ -229,21 +235,25 @@ class Spec:
             slyce = self.img[:,i]
 
             if self.integrate is not None:
+                # In this case, when we integrate we use same winv calulation as in the intensity vs energy plots.
+                # We do not use self.winv here, that is used for the fitting routine itself.
                 winv = 1/self.e_res
                 max_h = np.max(slyce)
                 slyce, scale = self.integrate(self.img.shape[0], winv, xaxis, slyce, xaxis)
                 slyce *= max_h
                 
-            params, fit_type, err = fit_func(slyce, xaxis, actualname=" fit", plot=False,min_h=min_h(slyce),min_w=min_w(slyce),integrate=self.integrate) if guess_params is None else fit_func(slyce, xaxis, actualname=" fit", plot=False,min_h=min_h(slyce),min_w=min_w(slyce), manual_params=guess_params[i])
+            # Here we decide on if we want to use an initial guess set, or make our own guesses.
+            if guess_params is None:
+                # If no guess is given, we also want to provide the integration function, as well as the width criteria for this fitting
+                params, fit_type, err = fit_func(slyce, xaxis, actualname=" fit", plot=False,min_h=min_h(slyce),min_w=min_w(slyce),integrate=self.integrate,winv=self.winv) 
+            else:
+                # Otherwise we just use the manual guesses.
+                params, fit_type, err = fit_func(slyce, xaxis, actualname=" fit", plot=False,min_h=min_h(slyce),min_w=min_w(slyce), manual_params=guess_params[i])
 
-            if params is None and guess_params is None:
-                for j in range(4):
-                    params, fit_type, err = fit_func(slyce, xaxis, actualname=" fit", plot=False,min_h=min_h(slyce),min_w=j)
-                    if params is not None:
-                        break
 
             # +0.5 to shift the point to the middle of the bin
             T = interp(i+0.5, self.img.shape[1], t_min, t_max)
+            # Saves these for plotting later if needed via double clicking on main plot
             self.fits[T] = (slyce, (params, xaxis, fit_type))
             if params is not None and len(params) > 2:
                 for j in range(0, len(params), 3):
@@ -256,6 +266,7 @@ class Spec:
                     H.append(abs(params[j]))
             else:
                 print("No fits at angle {}, {}".format(T, err))
+        # Plots the error bars and points, Also produces a file containing them
         if len(X) > 0:
             ax.scatter(X,Y,c='y',s=4,label="Simulation")
             ax.errorbar(X,Y,yerr=S, c='y',fmt='none',capsize=2)

@@ -425,8 +425,14 @@ class DetectGui:
                 t_max = spec.t_range[1]
                 axis = esa.make_axis(e_min, e_max, spec.energy, spec.img.shape[0]) * spec.energy
 
+                # Set the width for integration function
                 spec.e_res = self.dsettings.esize
+                # Sets width for integrating internally during fitting
+                spec.winv = 5
+                # Sets the gaussian integration function
                 spec.integrate = dtect_proc.integrate
+
+                # Attempt to fit the columns of the image
                 spec.try_fit(esa.fit_esa, axis, ax)
 
                 if self.comparison_file is not None:
