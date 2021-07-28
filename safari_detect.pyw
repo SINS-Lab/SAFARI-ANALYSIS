@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 from matplotlib import style
 from matplotlib.figure import Figure
+import data_files.detect_processor as dtect_proc
 from data_files.detect_processor import SpotDetector
 from data_files.detect_processor import Spectrum
 import data_files.detect_processor as detect
@@ -115,6 +116,7 @@ class DetectGui:
         self.filename = None
 
         self.fig, self.prep_fig = None, None
+        self.waiting = False
 
         self.helpMessage ='Analysis code for SAFARI data files\nimport a data file using the File menu.'
         self.copyrightMessage ='Copyright © 2021 Patrick Johnson All Rights Reserved.'
@@ -345,6 +347,17 @@ class DetectGui:
                 self.fig.savefig(self.fig_name)
                 self.fig_name = None
             self.fig = None
+            self.waiting = False
+        if self.waiting:
+            if self.canvas is not None:
+                # We need to cleanup the canvas and toolbar
+                self.canvas.get_tk_widget().message = None
+                self.toolbar.message = None
+
+                self.canvas.get_tk_widget().destroy()
+                self.toolbar.destroy()
+            # Next we should probably make some thing that lets us know that it is waiting?
+            
         self.root.after(100, self.check_figs)
 
     # Displays the matplotlib figure fig in the main window
@@ -388,6 +401,7 @@ class DetectGui:
         self.last_run = self.e_vs_t_plot
 
         self.fig = None
+        self.waiting = True
         fig, ax = plt.subplots(figsize=(12.0, 9.0))
         
         # Wraps this for a separate thread, allowing off-thread processing, but still running all of the matplotlib stuff on the main thread
@@ -395,10 +409,13 @@ class DetectGui:
             self.title_loading()
             spec_file = self.filename.replace('.input','').replace('.dbug','')+'.spec'
             spec = Spec(spec_file)
+
+            spec.peak_finder = esa.peak_finder
+
             spec.fig, spec.ax = fig, ax
             spec.big_font = False
             spec.process_data(d_phi=self.limits.p_max-self.limits.p_min)
-            spec.make_e_t_plot(do_plot=False)
+            spec.make_e_t_plot(do_plot=False, do_fits=fit)
 
             if fit:
                 self.title_text('Fitting, Please Wait')
@@ -407,7 +424,11 @@ class DetectGui:
                 t_min = spec.t_range[0]
                 t_max = spec.t_range[1]
                 axis = esa.make_axis(e_min, e_max, spec.energy, spec.img.shape[0]) * spec.energy
+
+                spec.e_res = self.dsettings.esize
+                spec.integrate = dtect_proc.integrate
                 spec.try_fit(esa.fit_esa, axis, ax)
+
                 if self.comparison_file is not None:
                     theta, energy, err = esa.load_data(self.comparison_file)
                     ax.scatter(theta,energy,c='r',s=4,label="Data")
@@ -425,7 +446,6 @@ class DetectGui:
         thread = threading.Thread(target=do_work)
         thread.start()
 
-
     # Produces an intensity vs energy plot
     def i_vs_e_plot(self):
         
@@ -440,6 +460,8 @@ class DetectGui:
 
         self.last_run = self.i_vs_e_plot
 
+        self.fig = None
+        self.waiting = True
         plots = plt.subplots(figsize=(8.0, 6.0))
 
         # Wraps this for a separate thread, allowing off-thread processing, but still running all of the matplotlib stuff on the main thread
@@ -471,6 +493,8 @@ class DetectGui:
             
         self.last_run = self.impact_plot
 
+        self.fig = None
+        self.waiting = True
         plots = plt.subplots(figsize=(12.0, 9.0))
 
         # Wraps this for a separate thread, allowing off-thread processing, but still running all of the matplotlib stuff on the main thread

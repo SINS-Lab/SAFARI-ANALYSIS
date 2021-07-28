@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt 
+import scipy.signal as signal       # Peak finding
 
 def interp(n, l, start, end):
     return start + n * (end - start) / l
@@ -19,8 +20,16 @@ class Spec:
         self.file = file
 
         self.fig, ax = None, None
+        self.prep_fig = None
+
+        self.fits = {}
 
         self.load(file)
+
+        self.e_res = self.energy/100
+
+        self.integrate = None
+
         self.img = None
         self.theta_phi = None
         self.big_font = True
@@ -114,6 +123,51 @@ class Spec:
             ax.set_title("Energy vs Theta {}".format(in_plot))
             ax.set_xlabel('Outgoing angle (Degrees)')
             ax.set_ylabel('Outgoing Energy (eV)')
+
+            if do_fits:
+                def onclick(event):
+                    if event.dblclick and event.button == 1:
+                        fig2, (ax2,ax3) = plt.subplots(1,2)
+                        T = round(event.xdata - 0.5, 0)+0.5 
+                        if T in self.fits:
+                            slyce, (params, xaxis, fit_type) = self.fits[T]
+                            ax2.plot(xaxis, slyce,label="Raw")
+
+                            grad = -np.gradient(slyce)
+                            grad /= (np.max(grad) - np.min(grad))
+
+                            grad2 = np.gradient(grad)
+                            grad2 = grad2.clip(0)
+                            grad2 /= (np.max(grad2) - np.min(grad2))
+
+                            winv = 5
+                            grad2, scale = self.integrate(len(grad2), winv, xaxis, grad2, xaxis)
+
+                            min_h = 0.01
+                            min_w = 1
+                            
+                            ax3.plot(xaxis, grad2, label='2nd Derivative')
+
+                            min_h = (np.max(grad)-np.min(grad))/100
+
+                            peak_params = self.peak_finder(slyce, xaxis, min_h, min_w, integrate=self.integrate)
+
+                            if peak_params is not None:
+                                fit_label = 'Guess\n'
+                                for i in range(0, len(peak_params), 3):
+                                    fit_label = fit_label + 'Peak: I={:.2f},E={:.2f}eV,sigma={:.2f}eV\n'.format(abs(peak_params[i]), peak_params[i+2], abs(peak_params[i+1]))
+                                ax2.plot(xaxis, fit_type(xaxis, *peak_params),label=fit_label)
+
+                            if params is not None:
+                                fit_label = 'Fit\n'
+                                for i in range(0, len(params), 3):
+                                    fit_label = fit_label + 'Peak: I={:.2f},E={:.2f}eV,sigma={:.2f}eV\n'.format(abs(params[i]), params[i+2], abs(params[i+1]))
+                                ax2.plot(xaxis, fit_type(xaxis, *params),label=fit_label)
+                            ax2.legend()
+                            ax3.legend()
+                        fig2.show()
+
+                fig.canvas.mpl_connect('button_press_event', onclick)
         
         self.prep_fig = prep_fig
 
@@ -158,7 +212,7 @@ class Spec:
         self.parse_data(data)
 
     def h_func(slyce):
-        return max(np.max(slyce)/100,5)
+        return max(np.max(slyce)/100, 1)
 
     def w_func(slyce):
         return 5
@@ -170,11 +224,27 @@ class Spec:
         Y = []
         S = []
         H = []
+        self.fits = {}
         for i in range(self.img.shape[1]):
             slyce = self.img[:,i]
-            params = fit_func(slyce, xaxis, actualname=" fit", plot=False,min_h=min_h(slyce),min_w=min_w(slyce)) if guess_params is None else fit_func(slyce, xaxis, actualname=" fit", plot=False,min_h=min_h(slyce),min_w=min_w(slyce), manual_params=guess_params[i])
+
+            if self.integrate is not None:
+                winv = 1/self.e_res
+                max_h = np.max(slyce)
+                slyce, scale = self.integrate(self.img.shape[0], winv, xaxis, slyce, xaxis)
+                slyce *= max_h
+                
+            params, fit_type, err = fit_func(slyce, xaxis, actualname=" fit", plot=False,min_h=min_h(slyce),min_w=min_w(slyce),integrate=self.integrate) if guess_params is None else fit_func(slyce, xaxis, actualname=" fit", plot=False,min_h=min_h(slyce),min_w=min_w(slyce), manual_params=guess_params[i])
+
+            if params is None and guess_params is None:
+                for j in range(4):
+                    params, fit_type, err = fit_func(slyce, xaxis, actualname=" fit", plot=False,min_h=min_h(slyce),min_w=j)
+                    if params is not None:
+                        break
+
             # +0.5 to shift the point to the middle of the bin
             T = interp(i+0.5, self.img.shape[1], t_min, t_max)
+            self.fits[T] = (slyce, (params, xaxis, fit_type))
             if params is not None and len(params) > 2:
                 for j in range(0, len(params), 3):
                     E = params[j+2]
@@ -185,7 +255,7 @@ class Spec:
                     S.append(abs(params[j+1]))
                     H.append(abs(params[j]))
             else:
-                print("No fits at angle {}, {}".format(T, params))
+                print("No fits at angle {}, {}".format(T, err))
         if len(X) > 0:
             ax.scatter(X,Y,c='y',s=4,label="Simulation")
             ax.errorbar(X,Y,yerr=S, c='y',fmt='none',capsize=2)

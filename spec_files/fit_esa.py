@@ -36,49 +36,61 @@ def make_axis(emin, emax, e_0, size):
     dE = (end - start) / size
     return np.array([start + dE * x for x in range(size)])
 
-def fit_esa(values, axis, actualname=None, plot=True, min_h = 10, min_w = 1, manual_params=None):
+def peak_finder(values, axis, min_h = 10, min_w = 1, grad=True, integrate=None):
 
-    if manual_params is None:
+    if grad:
+        derivative = -np.gradient(values)
+        derivative -= np.min(derivative)
+        derivative /= np.max(derivative)
+
+        grad2 = np.gradient(derivative)
+        grad2 = grad2.clip(0)
+        grad2 /= (np.max(grad2) - np.min(grad2))
+
+        # Apply the gaussian integration function to smooth out the 2nd derivative plot
+        if integrate is not None:
+            winv = 5
+            grad2, scale = integrate(len(grad2), winv, axis, grad2, axis)
+        
+        min_h = 0.0
+        min_w = 1
+
+        matched, properties = signal.find_peaks(grad2, prominence=min_h, width=min_w)
+    else:
         matched, properties = signal.find_peaks(values, prominence=min_h, width=min_w)
 
-        if len(matched) == 0:
-            print("No peaks found?")
-            return None
+    if len(matched) == 0:
+        if grad:
+            return peak_finder(values, axis, min_h, min_w, False)
+        return None
 
-        width = properties['widths']
-        height = properties['prominences']
+    width = properties['widths']
+    height = properties['prominences']
 
-        max_h = np.max(height)
-        peaks = []
-        widths = []
-        heights = []
+    max_h = np.max(values) / np.max(height)
 
-        params = []
+    params = []
 
-        dx = axis[len(axis)-1] - axis[0]
-        dy = values[len(axis)-1] - values[0]
+    dx = axis[len(axis)-1] - axis[0]
+    dy = values[len(axis)-1] - values[0]
 
-        # m = dy/dx
-        # b = values[0] - m * axis[0]
+    for i in range(len(matched)):
+        index = matched[i]
+        h = height[i]
+        w = (axis[index]-axis[index-1])*width[i]
+        h = height[i] * max_h
+        u = axis[index]
+        params.append(h)
+        params.append(w)
+        params.append(u)
+    return params
 
-        # params.append(m)
-        # params.append(b)
-        
-        for i in range(len(matched)):
-            index = matched[i]
-            h = height[i]
-            if(h > min_h):
-                peaks.append(axis[index])
-                widths.append((axis[index]-axis[index-1])*width[i])
-                heights.append(height[i])
-                n = len(heights) - 1
-                h = values[index]
-                # We want half-width for guess at sigma
-                w = widths[n] / 2
-                u = axis[index]
-                params.append(h)
-                params.append(w)
-                params.append(u)
+def fit_esa(values, axis, actualname=None, plot=True, min_h = 10, min_w = 1, manual_params=None, guess_func=peak_finder, fit_func=multiples, integrate=None):
+
+    if manual_params is None:
+        params = peak_finder(values, axis, min_h, min_w, integrate=integrate)
+        if params is None:
+            return None, fit_func, 'no peaks'
     else:
         params = manual_params
     
@@ -86,35 +98,32 @@ def fit_esa(values, axis, actualname=None, plot=True, min_h = 10, min_w = 1, man
     x_max = np.max(axis)
 
     try:
-        popt, pcov = curve_fit(multiples, axis, values, p0=params)
+        popt, pcov = curve_fit(fit_func, axis, values, p0=params)
     except:
-        print("Convergance Error?")
-        # traceback.print_exc()
-        fig,ax = plt.subplots()
+        if plot:
+            fig,ax = plt.subplots()
 
-        x_0 = axis
-        y_0 = multiples(x_0, *params)
+            x_0 = axis
+            y_0 = fit_func(x_0, *params)
 
-        ax.plot(axis, values, label='Data')
-        ax.plot(x_0, y_0, label='Initial Guess')
-        ax.set_xlabel('Energy (eV)')
-        ax.set_ylabel('Intensity')
-        ax.set_title(actualname)
-        ax.legend()
-        fig.show()
+            ax.plot(axis, values, label='Data')
+            ax.plot(x_0, y_0, label='Initial Guess')
+            ax.set_xlabel('Energy (eV)')
+            ax.set_ylabel('Intensity')
+            ax.set_title(actualname)
+            ax.legend()
+            fig.show()
 
-        return None
+        return None, fit_func, 'Convergance Error'
 
     x_0 = axis
 
-    y_0 = multiples(x_0, *params)
-    y_1 = multiples(x_0, *popt)
+    y_0 = fit_func(x_0, *params)
+    y_1 = fit_func(x_0, *popt)
 
     m,b,r,p,err = linregress(values, y_1)
 
     x_0 = np.array(make_axis(axis[0], axis[-1], 1, 512))
-    y_0 = multiples(x_0, *params)
-    y_1 = multiples(x_0, *popt)
 
     # fit_label = 'R={:.5f}\nLinear: {:.2e}x+{:.2f}\n'.format(r, popt[0], popt[1])
     fit_label = 'R={:.5f}\n'.format(r)
@@ -142,7 +151,7 @@ def fit_esa(values, axis, actualname=None, plot=True, min_h = 10, min_w = 1, man
         ax.legend()
         fig.show()
 
-    return popt
+    return popt, fit_func, 'None'
 
 def interp(y_b, y_a, x_b, x_a, x):
     if y_b == y_a:
