@@ -132,7 +132,7 @@ class Spec:
                 # This will result in displaying the plot for the particular column of the image when the column is double clicked.
                 def onclick(event):
                     if event.dblclick and event.button == 1:
-                        fig2, (ax2,ax3) = plt.subplots(1,2)
+                        fig2, (ax2,ax3) = plt.subplots(2)
                         T = round(event.xdata - 0.5, 0)+0.5 
                         if T in self.fits:
                             slyce, (params, xaxis, fit_type) = self.fits[T]
@@ -163,16 +163,16 @@ class Spec:
                             if peak_params is not None:
                                 fit_label = 'Guess\n'
                                 for i in range(0, len(peak_params), 3):
-                                    fit_label = fit_label + 'Peak: I={:.2f},E={:.2f}eV,sigma={:.2f}eV\n'.format(abs(peak_params[i]), peak_params[i+2], abs(peak_params[i+1]))
+                                    fit_label = fit_label + 'Peak: I={:.1f},E={:.1f}eV,sigma={:.1f}eV\n'.format(abs(peak_params[i]), peak_params[i+2], abs(peak_params[i+1]))
                                 ax2.plot(xaxis, fit_type(xaxis, *peak_params),label=fit_label)
 
                             # Plot the fit
                             if params is not None:
                                 fit_label = 'Fit\n'
                                 for i in range(0, len(params), 3):
-                                    fit_label = fit_label + 'Peak: I={:.2f},E={:.2f}eV,sigma={:.2f}eV\n'.format(abs(params[i]), params[i+2], abs(params[i+1]))
+                                    fit_label = fit_label + 'Peak: I={:.1f},E={:.1f}eV,sigma={:.1f}eV\n'.format(abs(params[i]), params[i+2], abs(params[i+1]))
                                 ax2.plot(xaxis, fit_type(xaxis, *params),label=fit_label)
-                            ax2.legend()
+                            ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
                             ax3.legend()
                         fig2.show()
 
