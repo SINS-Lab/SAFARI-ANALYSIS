@@ -271,7 +271,6 @@ class DetectGui:
         if self.last_run is not None:
             self.last_run()
 
-
     # Selects the file to load from, will only show .input and .dbug files
     def select_file(self):
         global root_path
@@ -398,7 +397,12 @@ class DetectGui:
             else:
                 self.dataset = ret
 
-        self.last_run = self.e_vs_t_plot
+        if not fit:
+            self.last_run = self.e_vs_t_plot
+        else:
+            def replot():
+                self.e_vs_t_plot(fit=True)
+            self.last_run = replot
 
         self.fig = None
         self.waiting = True
