@@ -89,6 +89,7 @@ def peak_finder(values, axis, min_h = 10, min_w = 1, grad=True, integrate=None, 
         if not grad:
             w /= 2
         h = height[i] * max_h
+        h = (values[index] + h) / 2
         u = axis[index]
         params.append(h)
         params.append(w)
