@@ -415,6 +415,7 @@ class DetectGui:
             spec = Spec(spec_file)
 
             spec.peak_finder = esa.peak_finder
+            spec.min_e = self.limits.e_min
 
             spec.fig, spec.ax = fig, ax
             spec.big_font = False

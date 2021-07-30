@@ -36,7 +36,7 @@ def make_axis(emin, emax, e_0, size):
     dE = (end - start) / size
     return np.array([start + dE * x for x in range(size)])
 
-def peak_finder(values, axis, min_h = 10, min_w = 1, grad=True, integrate=None, winv=5):
+def peak_finder(values, axis, min_h = 10, min_w = 1, grad=True, integrate=None, winv=5, min_x=0):
 
     # In this case, we will use the second derivative for peak finding.
     if grad:
@@ -80,8 +80,14 @@ def peak_finder(values, axis, min_h = 10, min_w = 1, grad=True, integrate=None, 
     # Compile some initial guesses
     for i in range(len(matched)):
         index = matched[i]
+
+        u = axis[index]
+        if u < min_x:
+            continue
+
         h = height[i]
         w = (axis[index]-axis[index-1])*width[i]
+
         # For non-deriviative fitting, this returns
         # the full-width of the entire peak, we want
         # at the mid point, so dividing by 2 gives
@@ -90,16 +96,15 @@ def peak_finder(values, axis, min_h = 10, min_w = 1, grad=True, integrate=None, 
             w /= 2
         h = height[i] * max_h
         h = (values[index] + h) / 2
-        u = axis[index]
         params.append(h)
         params.append(w)
         params.append(u)
     return params
 
-def fit_esa(values, axis, actualname=None, plot=True, min_h = 10, min_w = 1, manual_params=None, guess_func=peak_finder, fit_func=multiples, integrate=None, winv=5):
+def fit_esa(values, axis, actualname=None, plot=True, min_h = 10, min_w = 1, manual_params=None, guess_func=peak_finder, fit_func=multiples, integrate=None, winv=5, min_x=0):
 
     if manual_params is None:
-        params = peak_finder(values, axis, min_h, min_w, integrate=integrate, winv=winv)
+        params = peak_finder(values, axis, min_h, min_w, integrate=integrate, winv=winv, min_x=min_x)
         if params is None:
             return None, fit_func, 'no peaks'
     else:

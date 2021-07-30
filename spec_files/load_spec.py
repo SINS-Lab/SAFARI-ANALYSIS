@@ -19,6 +19,8 @@ class Spec:
         self.p_range = [0,0]
         self.file = file
 
+        self.min_e = 0
+
         self.fig, ax = None, None
         self.prep_fig = None
 
@@ -157,7 +159,7 @@ class Spec:
 
                             min_h = (np.max(grad)-np.min(grad))/100
 
-                            peak_params = self.peak_finder(slyce, xaxis, min_h, min_w, integrate=self.integrate)
+                            peak_params = self.peak_finder(slyce, xaxis, min_h, min_w, integrate=self.integrate,min_x=self.min_e)
 
                             # Plot the guess
                             if peak_params is not None:
@@ -248,7 +250,7 @@ class Spec:
             # Here we decide on if we want to use an initial guess set, or make our own guesses.
             if guess_params is None:
                 # If no guess is given, we also want to provide the integration function, as well as the width criteria for this fitting
-                params, fit_type, err = fit_func(slyce, xaxis, actualname=" fit", plot=False,min_h=min_h(slyce),min_w=min_w(slyce),integrate=self.integrate,winv=self.winv) 
+                params, fit_type, err = fit_func(slyce, xaxis, actualname=" fit", plot=False,min_h=min_h(slyce),min_w=min_w(slyce),integrate=self.integrate,winv=self.winv,min_x=self.min_e) 
             else:
                 # Otherwise we just use the manual guesses.
                 params, fit_type, err = fit_func(slyce, xaxis, actualname=" fit", plot=False,min_h=min_h(slyce),min_w=min_w(slyce), manual_params=guess_params[i])
