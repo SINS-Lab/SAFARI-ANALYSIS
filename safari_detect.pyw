@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import tkinter as tk
 from tkinter import filedialog
 
@@ -12,14 +14,19 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 from matplotlib import style
 from matplotlib.figure import Figure
+
 import data_files.detect_processor as dtect_proc
 from data_files.detect_processor import SpotDetector
 from data_files.detect_processor import Spectrum
 import data_files.detect_processor as detect
 import data_files.safari_input as safari_input
+
 import spec_files.load_spec as load_spec
 import spec_files.fit_esa as esa
 from spec_files.load_spec import Spec
+
+import traj_files.plot_traj as plot_traj
+
 import threading
 
 global root_path
@@ -114,6 +121,7 @@ class DetectGui:
 
         self.comparison_file = None
         self.filename = None
+        self.traj_file = None
 
         self.fig, self.prep_fig = None, None
         self.waiting = False
@@ -145,6 +153,7 @@ class DetectGui:
         filemenu.add_separator()
         filemenu.add_command(label="Select File", command=lambda: self.select_file())
         filemenu.add_command(label='Select Comparison Data', command=lambda: self.select_data())
+        filemenu.add_command(label="Select Traj", command=lambda: self.select_traj_file())
         filemenu.add_separator()
         filemenu.add_command(label='Exit', command=lambda: self.exit_detect())
 
@@ -162,6 +171,9 @@ class DetectGui:
         filemenu.add_separator()
         filemenu.add_command(label='Energy vs Theta Plot', command=lambda: self.e_vs_t_plot(fit=False))
         filemenu.add_command(label='Energy vs Theta Plot - Fit', command=lambda: self.e_vs_t_plot(fit=True))
+        filemenu.add_separator()
+        filemenu.add_command(label='Trajectory Energy Plot', command=lambda: self.traj_energy_plot())
+        filemenu.add_command(label='Trajectory Plot', command=lambda: self.traj_plot())
 
         #Creates Help menu
         helpmenu = tk.Menu(menu, tearoff=0)
@@ -316,6 +328,21 @@ class DetectGui:
 
         return self.dataset
 
+    # Selects the file to load from, will only show .input and .dbug files
+    def select_traj_file(self, open_traj=True):
+        global root_path
+        newfile = filedialog.askopenfilename(initialdir = root_path, title = "Select file",filetypes = (("SAFARI traj files",".traj"),("SAFARI traj files",".traj")))
+        if newfile == '':
+            return None
+        self.traj_file = newfile
+        root_path = os.path.dirname(newfile)
+        if open_traj:
+            if self.last_run == self.traj_plot:
+                self.traj_plot()
+            else:
+                self.traj_energy_plot()
+        return self.traj_file
+
     # Initializes the dataset based on limits defined by limits
     def init_data(self):
         _emin = self.limits.e_min
@@ -340,12 +367,14 @@ class DetectGui:
 
     def check_figs(self):
         if self.fig is not None:
-            self.prep_fig()
+            if self.prep_fig is not None:
+                self.prep_fig()
             self.show_fig(self.fig)
             if self.fig_name is not None:
                 self.fig.savefig(self.fig_name)
                 self.fig_name = None
             self.fig = None
+            self.prep_fig = None
             self.waiting = False
         if self.waiting:
             if self.canvas is not None:
@@ -521,6 +550,55 @@ class DetectGui:
             self.fig = self.detector.fig
             # Switch to finished title
             self.title_selected()
+        # Schedule this on a worker thread
+        thread = threading.Thread(target=do_work)
+        thread.start()
+
+    def traj_energy_plot(self):
+        if self.traj_file is None:
+            opened = self.select_traj_file()
+            return
+
+        self.last_run = self.traj_energy_plot
+
+        self.fig = None
+        self.waiting = True
+        fig, ax = plt.subplots(figsize=(12.0, 9.0))
+
+        def do_work():
+            self.title_text('Loading Traj')
+            traj = plot_traj.Traj()
+            traj.load(self.traj_file)
+            traj.plot_energies(ax)
+            self.fig = fig
+            self.fig_name = self.traj_file.replace('.traj', '_traj_energy.png')
+            self.title_text('Trajectory Energies')
+        # Schedule this on a worker thread
+        thread = threading.Thread(target=do_work)
+        thread.start()
+
+    def traj_plot(self):
+        if self.traj_file is None:
+            opened = self.select_traj_file(open_traj=False)
+            if opened is None:
+                return
+
+        self.last_run = self.traj_plot
+
+        self.fig = None
+        self.waiting = True
+        fig = plt.figure()
+        ax = plt.axes(projection='3d')
+
+        def do_work():
+            self.title_text('Loading Traj')
+            traj = plot_traj.Traj()
+            traj.load(self.traj_file)
+            traj.plot_traj_3d(ax)
+            self.fig = fig
+            self.fig_name = self.traj_file.replace('.traj', '_traj.png')
+            self.title_text('Trajectory Plot')
+
         # Schedule this on a worker thread
         thread = threading.Thread(target=do_work)
         thread.start()
