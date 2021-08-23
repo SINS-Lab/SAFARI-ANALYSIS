@@ -594,7 +594,7 @@ class DetectGui:
             self.title_text('Loading Traj')
             traj = plot_traj.Traj()
             traj.load(self.traj_file)
-            traj.plot_traj_3d(ax)
+            traj.plot_traj_3d(fig, ax)
             self.fig = fig
             self.fig_name = self.traj_file.replace('.traj', '_traj.png')
             self.title_text('Trajectory Plot')

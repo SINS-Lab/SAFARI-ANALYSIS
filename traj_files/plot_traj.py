@@ -99,9 +99,46 @@ class Traj:
         ax.set_xlabel('Time (fs)')
         ax.set_ylabel('Z Position (Å)')
 
-    def plot_traj_3d(self, ax):
-        ax.scatter3D(self.x,self.y,self.z)
-        ax.scatter3D([self.x[0]],[self.y[0]],[self.z[0]],'red')
+    def plot_traj_3d(self, fig, ax):
+        x,y,z = self.x, self.y, self.z
+
+        dir_x = [x[-1]-x[-2]]
+        dir_y = [y[-1]-y[-2]]
+        dir_z = [z[-1]-z[-2]]
+
+        ax.quiver([x[-1]], [y[-1]], [z[-1]], dir_x, dir_y, dir_z, length=1.0, normalize=True)
+        ax.scatter3D(x, y, z,c='red')
+        self.zoomed=True
+        
+        def onclick(event):
+            if event.dblclick:
+                min_x = np.min(x)
+                min_y = np.min(y)
+
+                max_x = np.max(x)
+                max_y = np.max(y)
+
+                dx = np.max(x) - np.min(x)
+                dy = np.max(y) - np.min(y)
+
+                if self.zoomed:
+                    if(dy < dx):
+                        mean_y = (min_y + max_y) / 2
+                        min_y = mean_y - dx/2
+                        max_y = mean_y + dx/2
+                    elif(dy > dx):
+                        mean_x = (min_x + max_x) / 2
+                        min_x = mean_x - dy/2
+                        max_x = mean_x + dy/2
+                    self.zoomed = False
+                else:
+                    self.zoomed = True
+                ax.set_xlim(min_x, max_x)
+                ax.set_ylim(min_y, max_y)
+
+            fig.canvas.draw()
+
+        fig.canvas.mpl_connect('button_press_event', onclick)
 
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser()
@@ -122,7 +159,7 @@ if __name__ == "__main__" :
 
     fig3 = plt.figure()
     ax3 = plt.axes(projection='3d')
-    traj.plot_traj_3d(ax3)
+    traj.plot_traj_3d(fig3, ax3)
     fig3.show()
 
     if args.save:
