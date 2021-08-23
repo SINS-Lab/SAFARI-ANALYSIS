@@ -84,6 +84,25 @@ class Traj:
         self.V = np.array(self.V)
         self.E = np.array(self.E)
 
+    def plot_energies(self, ax):
+        ax.plot(self.t, self.V, label="Interaction Potential")
+        ax.plot(self.t, self.T, label="Kinetic Energy")
+        ax.plot(self.t, self.E, label="Total Energy")
+
+        ax.set_xlabel('Time (fs)')
+        ax.set_ylabel('Energy (eV)')
+        ax.legend()
+
+    def plot_traj_1d(self, ax, axis='z'):
+        ax.plot(self.t, self.z)
+
+        ax.set_xlabel('Time (fs)')
+        ax.set_ylabel('Z Position (Å)')
+
+    def plot_traj_3d(self, ax):
+        ax.scatter3D(self.x,self.y,self.z)
+        ax.scatter3D([self.x[0]],[self.y[0]],[self.z[0]],'red')
+
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", help="input file")
@@ -94,21 +113,17 @@ if __name__ == "__main__" :
     traj.load(args.input)
 
     fig, ax = plt.subplots()
-    ax.plot(traj.t, traj.V, label="Interaction Potential")
-    ax.plot(traj.t, traj.T, label="Kinetic Energy")
-    ax.plot(traj.t, traj.E, label="Total Energy")
-
-    ax.set_xlabel('Time (fs)')
-    ax.set_ylabel('Energy (eV)')
-    ax.legend()
+    traj.plot_energies(ax)
     fig.show()
 
     fig2, ax2 = plt.subplots()
-    ax2.plot(traj.t, traj.z)
-
-    ax2.set_xlabel('Time (fs)')
-    ax2.set_ylabel('Z Position (Å)')
+    traj.plot_traj_1d(ax2)
     fig2.show()
+
+    fig3 = plt.figure()
+    ax3 = plt.axes(projection='3d')
+    traj.plot_traj_3d(ax3)
+    fig3.show()
 
     if args.save:
         fig.savefig(args.input.replace('.traj', '_energy.png'))
