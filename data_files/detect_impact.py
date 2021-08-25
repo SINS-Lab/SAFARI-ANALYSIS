@@ -17,21 +17,32 @@ args = parser.parse_args()
 # Run a single shot safari for this run,
 # assuming the input file 
 # was already configured properly.
-command = 'Sea-Safari.exe -i {} -o {} -s -x {} -y {} --seed {}'
+command = './Sea-Safari -i {} -o {} -s -x {} -y {} --seed {}'
 
 if args.restricted:
-    command = 'Sea-Safari.exe -i {} -o {} -s -x {} -y {} --seed {} -r'
+    command = './Sea-Safari -i {} -o {} -s -x {} -y {} --seed {} -r'
 
-#Change command accordingly for linux
-if platform.system() == 'Linux':
-    command = command.replace('Sea-Safari.exe', './Sea-Safari')
+run_input = args.input
+run_output = args.output
+
+# In this case, drive letters need removing, and replacing `<X>:` with `/mnt/<x>`
+if platform.system() == 'Windows':
+    drive = run_input[0]
+    run_input = run_input.replace(drive+':', '/mnt/{}'.format(drive.lower()))
+    drive = run_output[0]
+    run_output = run_output.replace(drive+':', '/mnt/{}'.format(drive.lower()))
 
 #Format the command
-command = command.format(args.input, args.output, args.x_coord, args.y_coord, args.seed)
+command = command.format(run_input, run_output, args.x_coord, args.y_coord, args.seed)
+
+if platform.system() == 'Windows':
+    command = 'wsl '+command
+
+print(command)
 
 subprocess.run(command, shell=True)
 
-xyz_in = args.output + '.xyz'
+xyz_in = run_output + '.xyz'
 fileOut = xyz_in
 
 command = ''
@@ -39,20 +50,24 @@ command = ''
 #format input argument for XYZ processor
 if args.colour:
     fileOut = fileOut.replace('.xyz', '_{}.xyz'.format(args.colour))
-    command = 'XYZ.exe -i {} -o {} -c {}'
+    command = './XYZ -i {} -o {} -c {}'
     command = command.format(xyz_in, fileOut, args.colour)
 else:
-    command = 'XYZ.exe -i {} -o {}'
+    command = './XYZ -i {} -o {}'
     command = command.format(xyz_in, fileOut)
 
-#Change command accordingly for linux
-if platform.system() == 'Linux':
-    command = command.replace('XYZ.exe', './XYZ')
-
 #Run XYZ processor and wait for it to finish.
+if platform.system() == 'Windows':
+    command = 'wsl '+command
+
+print(command)
+
 subprocess.run(command, shell=True)
 
 # MAKE THE FILENAME INCLUDE DIRECTORY
+xyz_in = args.output + '.xyz'
+fileOut = xyz_in
+
 #Replace \ with / in filenames
 fileOut = fileOut.replace('\\','/')
 

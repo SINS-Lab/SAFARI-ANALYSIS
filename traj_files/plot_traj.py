@@ -2,8 +2,6 @@ import argparse                    # Parsing input arguments
 import numpy as np                 # Array processing
 import math                        # sqrt, etc
 import matplotlib                  # Plotting
-#Qt5Agg is the backend
-matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt    # Plotting
 import scipy.constants as consts   # Converting safari-time to seconds
 
