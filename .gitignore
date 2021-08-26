@@ -39,6 +39,7 @@ MANIFEST
 # SAFARI executables
 XYZ*
 Sea-Safari*
+safari.input
 
 # Settings for VS Code
 .vscode/*
