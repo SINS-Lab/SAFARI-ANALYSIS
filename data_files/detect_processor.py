@@ -171,6 +171,7 @@ class Detector:
         self.tmp = []
 
         self.ss_cmd = "python3 detect_impact.py"
+        self.ss_callback = None
 
     def clear(self):
         self.detections = np.zeros((0,8))
@@ -350,6 +351,9 @@ class Detector:
         input_file = self.safio.fileIn.replace('.input', '')
         output_file = self.safio.fileIn.replace('.input', '') + \
                         '{}_{}'.format(imp_x, imp_y)
+
+        if self.ss_callback is not None:
+            self.ss_callback(output_file+'.vmd')
 
         cmd = [args.format(input_file, output_file, close[0], close[1], index)]
         if platform.system() != 'Linux':

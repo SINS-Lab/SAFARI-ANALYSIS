@@ -38,8 +38,6 @@ command = command.format(run_input, run_output, args.x_coord, args.y_coord, args
 if platform.system() == 'Windows':
     command = 'wsl '+command
 
-print(command)
-
 subprocess.run(command, shell=True)
 
 xyz_in = run_output + '.xyz'
@@ -66,6 +64,7 @@ subprocess.run(command, shell=True)
 
 # MAKE THE FILENAME INCLUDE DIRECTORY
 xyz_in = args.output + '.xyz'
+vmd_file = args.output + '.vmd'
 fileOut = xyz_in
 
 #Replace \ with / in filenames
@@ -86,10 +85,10 @@ commands.append("display rendermode GLSL\n")
 commands.append("display update\n")
 commands.append("display update ui\n")
 try:
-    with open("commands.vmd", "w") as file:
+    with open(vmd_file, "w") as file:
         file.writelines(commands)
-    subprocess.run(["vmd", "-e", "commands.vmd"])
+    subprocess.run(["vmd", "-e", vmd_file])
 finally:
     time.sleep(5)
-    os.remove("commands.vmd")
+    os.remove(vmd_file)
 

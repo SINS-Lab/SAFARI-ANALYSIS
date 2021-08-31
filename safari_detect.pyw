@@ -126,6 +126,8 @@ class DetectGui:
         self.fig, self.prep_fig = None, None
         self.waiting = False
 
+        self.single_shots = {}
+
         self.helpMessage ='Analysis code for SAFARI data files\nimport a data file using the File menu.'
         self.copyrightMessage ='Copyright © 2021 Patrick Johnson All Rights Reserved.'
         return
@@ -180,7 +182,10 @@ class DetectGui:
         menu.add_cascade(label='Help', menu=helpmenu)
         helpmenu.add_command(label='About', command= lambda: self.about())
 
+        # Queue up some tasks for general operation monitoring
         self.root.after(500, self.check_figs)
+        self.root.after(500, self.check_single_shot)
+
         if root == None:
             self.root.mainloop()
 
@@ -365,6 +370,7 @@ class DetectGui:
         self.detector.plots = False
         self.detector.pics = False
 
+    # This monitors for new figures to plot, so all plotting, etc happens on main thread
     def check_figs(self):
         if self.fig is not None:
             if self.prep_fig is not None:
@@ -387,6 +393,33 @@ class DetectGui:
             # Next we should probably make some thing that lets us know that it is waiting?
             
         self.root.after(100, self.check_figs)
+
+    # This monitors for if a single shot run is in progress, and if so, it will give an indication that it is still running
+    def check_single_shot(self):
+
+        if len(self.single_shots) > 0:
+            to_clean = []
+            for vmd_file, state in self.single_shots.items():
+                # State 0: waiting for things to run
+                if state == 0:
+                    self.title_text("Running Single Shot!")
+                    if os.path.isfile(vmd_file):
+                        self.single_shots[vmd_file] = 1
+                # State 1: vmd opened
+                elif state == 1:
+                    self.title_text("Finished Single Shot!")
+                    if not os.path.isfile(vmd_file):
+                        self.single_shots[vmd_file] = 2
+                # State 2: completely finished
+                else:
+                    self.title_selected()
+                    to_clean.append(vmd_file)
+            for key in to_clean:
+                self.single_shots.pop(key)
+        self.root.after(500, self.check_single_shot)
+
+    def register_single_shot(self, vmd_file):
+        self.single_shots[vmd_file] = 0
 
     # Displays the matplotlib figure fig in the main window
     def show_fig(self, fig):
@@ -530,11 +563,12 @@ class DetectGui:
                 return
             else:
                 self.dataset = ret
-            
+        
         self.last_run = self.impact_plot
 
         self.fig = None
         self.waiting = True
+        self.detector.ss_callback = self.register_single_shot
         plots = plt.subplots(figsize=(12.0, 9.0))
 
         # Wraps this for a separate thread, allowing off-thread processing, but still running all of the matplotlib stuff on the main thread
