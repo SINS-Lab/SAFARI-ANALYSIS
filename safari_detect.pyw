@@ -128,8 +128,33 @@ class DetectGui:
 
         self.single_shots = {}
 
-        self.helpMessage ='Analysis code for SAFARI data files\nimport a data file using the File menu.'
-        self.copyrightMessage ='Copyright © 2021 Patrick Johnson All Rights Reserved.'
+        self.aboutMessage = 'Analysis code for SAFARI data files\nimport a data file using the File menu.'
+        self.copyrightMessage = 'Copyright © 2021 Patrick Johnson All Rights Reserved.'
+
+        self.dsettings_help = '   General settings for detector position and resolution:\n\n'+\
+                              '   Theta: elevation angle for the detector, measured from normal (Degrees)\n'+\
+                              '   Phi: azimuthal angle for detector (Degrees)\n'+\
+                              '   Angular Size: spatial size of detector (Degrees)\n'+\
+                              '   Energy Res: gaussian bin width for detector (eV)\n\n'+\
+                              '   Clicking Update will apply the changes and attempt to re-plot if applicable\n'+\
+                              '   Clicking Cancel will close the window without applying changes'
+
+        self.dlimits_help =   '   General settings for detector limits:\n\n'+\
+                              '   Min Theta: Minimum outgoing theta-angle for particles (Degrees)\n'+\
+                              '   Max Theta: Maximum outgoing theta-angle for particles (Degrees)\n'+\
+                              '   Min Phi: Minimum outgoing phi-angle for particles (Degrees)\n'+\
+                              '   Max Phi: Maximum outgoing phi-angle for particles (Degrees)\n'+\
+                              '   Min Energy: Minimum outgoing energy for particles (eV)\n'+\
+                              '   Max Energy: Maximum outgoing energy for particles (eV)\n'+\
+                              '   Clicking Update will apply the changes and attempt to re-plot if applicable\n'+\
+                              '   Clicking Cancel will close the window without applying changes'
+
+        self.file_type_info = '   File Menu Options:\n\n'+\
+                              '   Select File: Select a .input or .dbug file for the run,\n'+\
+                              '                 this is used for Intensity vs. Energy plots,\n'+\
+                              '                 Impact Plots, and Energy vs. Theta plots\n\n'+\
+                              '   Select Comparison Data: Select a .dat or .txt file containing a spectra to compare to the Energy vs. Theta plot.\n\n'+\
+                              '   Select Traj: Select a .traj file for inspecting single shot runs.'
         return
 
     # Starts the tk application, adds the file menus, etc
@@ -180,6 +205,11 @@ class DetectGui:
         #Creates Help menu
         helpmenu = tk.Menu(menu, tearoff=0)
         menu.add_cascade(label='Help', menu=helpmenu)
+        helpmenu.add_command(label='File Types', command= lambda: self.file_settings())
+        helpmenu.add_separator()
+        helpmenu.add_command(label='Detector Settings', command= lambda: self.help_settings("Detector Settings Help", self.dsettings_help))
+        helpmenu.add_command(label='Detector Limits', command= lambda: self.help_settings("Detector Limits Help", self.dlimits_help))
+        helpmenu.add_separator()
         helpmenu.add_command(label='About', command= lambda: self.about())
 
         # Queue up some tasks for general operation monitoring
@@ -193,11 +223,23 @@ class DetectGui:
     def about(self):
         t = tk.Toplevel(self.root)
         t.wm_title("About")
-        t.configure(background='white')
-        l = tk.Label(t, text = self.helpMessage, bg='white', font = font_14)
+        l = tk.Label(t, text = self.aboutMessage, font = font_14)
         l.pack(side="top", fill="both", expand=True, padx=100, pady=100)
-        messageVar = tk.Message(t, text = self.copyrightMessage, bg='white', fg='black', font = font_14, width = 600)
+        messageVar = tk.Message(t, text = self.copyrightMessage, fg='black', font = font_14, width = 600)
         messageVar.place(relx = 0.5, rely = 1, anchor = tk.S)
+
+    def help_settings(self, title, msg):
+        t = tk.Toplevel(self.root)
+        t.wm_title(title)
+        l = tk.Label(t, text = msg, font = font_14, justify=tk.LEFT)
+        l.pack(side="top", fill="both", expand=True, padx=100, pady=100)
+
+    def file_settings(self):
+        t = tk.Toplevel(self.root)
+        t.wm_title('File Types')
+        l = tk.Label(t, text = self.file_type_info, font = font_14, justify=tk.LEFT)
+        l.pack(side="top", fill="both", expand=True, padx=100, pady=100)
+
 
     # Exits the application
     def exit_detect(self):
@@ -235,17 +277,18 @@ class DetectGui:
 
         window = tk.Toplevel(self.root)
         window.wm_title(name)
-        h = int(len(thing._names_)*20 + 150)
+        dh = 22
+        h = int(len(thing._names_)*dh + 150)
         window.geometry('400x{}'.format(h))
 
         fields = {}
         i = 0
         for key,value in thing._names_.items():
-            label = tk.Label(window, text = value, font = font_14)
-            label.place(relx=0.4, y=50 + i * 20, anchor = tk.E)
-            entry = tk.Entry(window, font = font_14, width = 10)
+            label = tk.Label(window, text = value, font = font_12)
+            label.place(relx=0.4, y=50 + i * dh, anchor = tk.E)
+            entry = tk.Entry(window, font = font_12, width = 10)
             entry.insert(0, getattr(thing,key))
-            entry.place(relx=0.4, y=50  + i * 20, anchor = tk.W)
+            entry.place(relx=0.4, y=50  + i * dh, anchor = tk.W)
             i = i + 1
             fields[key] = entry
 
