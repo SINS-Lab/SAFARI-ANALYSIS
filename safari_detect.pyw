@@ -145,7 +145,7 @@ class DetectGui:
                               '   Min Phi: Minimum outgoing phi-angle for particles (Degrees)\n'+\
                               '   Max Phi: Maximum outgoing phi-angle for particles (Degrees)\n'+\
                               '   Min Energy: Minimum outgoing energy for particles (eV)\n'+\
-                              '   Max Energy: Maximum outgoing energy for particles (eV)\n'+\
+                              '   Max Energy: Maximum outgoing energy for particles (eV)\n\n'+\
                               '   Clicking Update will apply the changes and attempt to re-plot if applicable\n'+\
                               '   Clicking Cancel will close the window without applying changes'
 
@@ -153,7 +153,8 @@ class DetectGui:
                               '   Select File: Select a .input or .dbug file for the run,\n'+\
                               '                 this is used for Intensity vs. Energy plots,\n'+\
                               '                 Impact Plots, and Energy vs. Theta plots\n\n'+\
-                              '   Select Comparison Data: Select a .dat or .txt file containing a spectra to compare to the Energy vs. Theta plot.\n\n'+\
+                              '   Select Comparison Data: Select a .dat or .txt file containing a spectrum\n'+\
+                              '                           to compare to the Energy vs. Theta plot.\n\n'+\
                               '   Select Traj: Select a .traj file for inspecting single shot runs.'
         return
 
@@ -231,13 +232,17 @@ class DetectGui:
     def help_settings(self, title, msg):
         t = tk.Toplevel(self.root)
         t.wm_title(title)
-        l = tk.Label(t, text = msg, font = font_14, justify=tk.LEFT)
+        l = tk.Text(t, font = font_14)
+        l.insert('end',msg)
+        l.config(state='disabled')
         l.pack(side="top", fill="both", expand=True, padx=100, pady=100)
 
     def file_settings(self):
         t = tk.Toplevel(self.root)
         t.wm_title('File Types')
-        l = tk.Label(t, text = self.file_type_info, font = font_14, justify=tk.LEFT)
+        l = tk.Text(t, font = font_14)
+        l.insert('end',self.file_type_info)
+        l.config(state='disabled')
         l.pack(side="top", fill="both", expand=True, padx=100, pady=100)
 
 
