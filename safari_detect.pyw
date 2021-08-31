@@ -75,11 +75,20 @@ class Limits:
         self._names_ = {
                         't_min':"Min Theta: ",
                         't_max':"Max Theta: ",
-                        'p_min':'Min Phi: ',
+                        'p_min':"Min Phi: ",
                         'p_max':"Max Phi: ",
                         'e_min':"Min Energy: ",
                         'e_max':"Max Energy: "
                         }
+
+        self._units_ = {
+                        't_min':"Degrees",
+                        't_max':"Degrees",
+                        'p_min':"Degrees",
+                        'p_max':"Degrees",
+                        'e_min':"eV",
+                        'e_max':"eV"
+                       }
 
         self.p_min = 0
         self.p_max = 0
@@ -98,6 +107,11 @@ class Settings:
                         'phi':"Phi: ",
                         'asize':"Angular Size: ",
                         'esize':"Energy Res: "
+                        }
+        self._units_ = {'theta':'Degrees',
+                        'phi':"Degrees",
+                        'asize':"Degrees",
+                        'esize':"eV"
                         }
 
         self.theta = 45
@@ -286,14 +300,21 @@ class DetectGui:
         h = int(len(thing._names_)*dh + 150)
         window.geometry('400x{}'.format(h))
 
+        x_orig = 160
+
         fields = {}
         i = 0
         for key,value in thing._names_.items():
             label = tk.Label(window, text = value, font = font_12)
-            label.place(relx=0.4, y=50 + i * dh, anchor = tk.E)
+            label.place(x=x_orig, y=50 + i * dh, anchor = tk.E)
+
             entry = tk.Entry(window, font = font_12, width = 10)
             entry.insert(0, getattr(thing,key))
-            entry.place(relx=0.4, y=50  + i * dh, anchor = tk.W)
+            entry.place(x=x_orig, y=50 + i * dh, anchor = tk.W)
+
+            label = tk.Label(window, text = thing._units_[key], font = font_12)
+            label.place(x=x_orig + 100, y=50 + i * dh, anchor = tk.W)
+
             i = i + 1
             fields[key] = entry
 
