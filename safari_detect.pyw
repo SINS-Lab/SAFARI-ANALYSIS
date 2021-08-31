@@ -50,8 +50,6 @@ else:
 
     plt.rcParams.update({'font.family': 'DejaVu Sans'})
 
-
-
 plt.rcParams.update({'font.size': 18})
 
 instances = []
@@ -258,7 +256,6 @@ class DetectGui:
         l.insert('end',self.file_type_info)
         l.config(state='disabled')
         l.pack(side="top", fill="both", expand=True, padx=100, pady=100)
-
 
     # Exits the application
     def exit_detect(self):
