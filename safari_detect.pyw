@@ -217,8 +217,6 @@ class DetectGui:
         self.files_keys = ["file_types"]
         self.settings_keys = ["dsettings", "dlimits"]
 
-        return
-
     # Starts the tk application, adds the file menus, etc
     def start(self, root=None):
         if root == None:
@@ -326,7 +324,6 @@ class DetectGui:
 
     # Exits the application
     def exit_detect(self):
-        self.root.quit()
         self.root.destroy()
 
     # Callback for updating the detector/dataset based on changes to dsettings and limits
