@@ -181,7 +181,11 @@ class DetectGui:
 
         impact_info = '   Impact Plots:\n\n'+\
                       '   Use the .data file, loads from Select File option\n\n'+\
-                      '   This plot can be used to generate single shot runs'
+                      '   This plot can be used to generate single shot runs.\n'+\
+                      '   Single shot runs require the Sea-Safari and XYZ executables\n'+\
+                      '   to be placed in the run directory for safari_detect, and\n'+\
+                      '   if VMD is also installed, then it will open VMD showing the\n'+\
+                      '   trajectory when the run completes'
 
         e_vs_t_info = '   Energy vs. Theta Plots:\n\n'+\
                       '   Use the .spec file, loads from Select File option\n\n'+\
@@ -236,9 +240,11 @@ class DetectGui:
     def start(self, root=None):
         if root == None:
             self.root = tk.Tk()
+            self.first = True
         else:
             self.root = root
             self.base_name = "SAFARI Detect {}".format(len(instances))
+            self.first = False
 
         menu = tk.Menu(self.root)
         self.root.config(menu=menu)
@@ -326,6 +332,8 @@ class DetectGui:
 
     # Exits the application
     def exit_detect(self):
+        if(self.first):
+            self.root.quit()
         self.root.destroy()
 
     # Callback for updating the detector/dataset based on changes to dsettings and limits
