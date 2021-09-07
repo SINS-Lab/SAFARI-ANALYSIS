@@ -125,7 +125,7 @@ class Spec:
                 cb.set_label("Relative Log Intensity")
             else:
                 cb.set_label("Counts")
-            ax.set_title("Energy vs Theta {}".format(in_plot))
+            ax.set_title("Energy vs Theta {}".format(int(in_plot)))
             ax.set_xlabel('Outgoing angle (Degrees)')
             ax.set_ylabel('Outgoing Energy (eV)')
 

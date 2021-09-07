@@ -189,7 +189,7 @@ class DetectGui:
 
         e_vs_t_info = '   Energy vs. Theta Plots:\n\n'+\
                       '   Use the .spec file, loads from Select File option\n\n'+\
-                      '   The "Fit" version also attempts to fit peaks and error\n\n'+\
+                      '   The "Fit" version also attempts to fit peaks and error\n'+\
                       '   bars to the spectra represented by each column of the plot\n\n'+\
                       '   Comparison Data files can be plotted over the fit version of this plot'
 
