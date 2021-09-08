@@ -484,36 +484,37 @@ def load(file_in):
     Z = np.array(Z)
     return X, Y, Z, S, bounds, mask
 
-def plot_crystal(x, y, z, S, ax):
+def plot_crystal(x, y, z, S, ax, do_lims=True):
     ax.scatter3D(x, y, z,c='orange')
 
-    min_x = np.min(x)
-    min_y = np.min(y)
-    min_z = np.min(z)
+    if do_lims:
+        min_x = np.min(x)
+        min_y = np.min(y)
+        min_z = np.min(z)
 
-    max_x = np.max(x)
-    max_y = np.max(y)
-    max_z = np.max(z)
+        max_x = np.max(x)
+        max_y = np.max(y)
+        max_z = np.max(z)
 
-    dx = np.max(x) - np.min(x)
-    dy = np.max(y) - np.min(y)
-    dz = np.max(z) - np.min(z)
+        dx = np.max(x) - np.min(x)
+        dy = np.max(y) - np.min(y)
+        dz = np.max(z) - np.min(z)
 
-    dmax = max(dx, max(dy, dz))
+        dmax = max(dx, max(dy, dz))
 
-    mean_x = (min_x + max_x) / 2
-    mean_y = (min_y + max_y) / 2
-    mean_z = (min_z + max_z) / 2
-    min_y = mean_y - dmax/2
-    max_y = mean_y + dmax/2
-    min_x = mean_x - dmax/2
-    max_x = mean_x + dmax/2
-    min_z = mean_z - dmax/2
-    max_z = mean_z + dmax/2
+        mean_x = (min_x + max_x) / 2
+        mean_y = (min_y + max_y) / 2
+        mean_z = (min_z + max_z) / 2
+        min_y = mean_y - dmax/2
+        max_y = mean_y + dmax/2
+        min_x = mean_x - dmax/2
+        max_x = mean_x + dmax/2
+        min_z = mean_z - dmax/2
+        max_z = mean_z + dmax/2
 
-    ax.set_xlim(min_x, max_x)
-    ax.set_ylim(min_y, max_y)
-    ax.set_zlim(min_z, max_z)
+        ax.set_xlim(min_x, max_x)
+        ax.set_ylim(min_y, max_y)
+        ax.set_zlim(min_z, max_z)
 
 def add_active_area(ax, bounds, mask):
     min_x = bounds[0][0]
@@ -543,10 +544,11 @@ def add_active_area(ax, bounds, mask):
         z = [0, 0]
         ax.plot3D(x, y, z, c='blue')
 
-def plot(filename, ax):
+def plot(filename, ax, do_lims=True, do_bounds=True):
     X, Y, Z, S, bounds, mask = load(filename)
     plot_crystal(X, Y, Z, S, ax)
-    add_active_area(ax, bounds, mask)
+    if do_bounds:
+        add_active_area(ax, bounds, mask)
     return
 
 if __name__ == "__main__" :

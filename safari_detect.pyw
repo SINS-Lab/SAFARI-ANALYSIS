@@ -132,6 +132,15 @@ class CompSettings:
         self.scale_by_E = True
         self.normalise = True
 
+class TrajSettings:
+    def __init__(self):
+        self._names_ = {'show_lattice':'Show Lattice: ',
+                        }
+        self._units_ = {'show_lattice':''
+                        }
+
+        self.show_lattice = False
+
 class DetectGui:
 
     def __init__(self):
@@ -143,9 +152,23 @@ class DetectGui:
         self.dataset = None
         self.detector = SpotDetector(45,0,1)
 
-        self.limits = Limits()
         self.dsettings = Settings()
+        self.limits = Limits()
         self.comp_setitngs = CompSettings()
+        self.traj_settings = TrajSettings()
+
+        self.settings = {
+            "dsettings": self.dsettings,
+            "dlimits": self.limits,
+            "traj_settings": self.traj_settings,
+            "comp_settings": self.comp_setitngs,
+        }
+        self.settings_cb = {
+            "dsettings": self.options_callback,
+            "dlimits": self.options_callback,
+            "traj_settings": None,
+            "comp_settings": None,
+        }
 
         self.safio_file = None
         self.traj_file = None
@@ -245,6 +268,7 @@ class DetectGui:
 
             "dsettings": dsettings_help,
             "dlimits": dlimits_help,
+            "traj_settings": "Traj Settings",
             "comp_settings": comp_settings_help,
         }
         self.help_labels = {
@@ -259,13 +283,14 @@ class DetectGui:
             "crystal_plot": "Crystal Plot",
 
             "dsettings": "Detector Settings",
+            "traj_settings": "Traj Settings",
             "dlimits": "Detector Limits",
             "comp_settings": "Data Settings",
         }
 
         self.files_keys = ["new_instance", "file_types"]
         self.plots_keys = ["i_vs_e_plot", "impact_plot", 'sp', "e_vs_t_plot", 'sp', "traj_energy_plot", "traj_plot", 'sp', 'crystal_plot']
-        self.settings_keys = ["dsettings", "dlimits", 'sp', "comp_settings"]
+        self.settings_keys = ["dsettings", "dlimits", 'traj_settings', 'sp', "comp_settings"]
 
         self.menus = {'File':self.files_keys, 'Settings':self.settings_keys, 'Plot':self.plots_keys}
 
@@ -302,10 +327,8 @@ class DetectGui:
         #Creates Settings menu
         settingsmenu = tk.Menu(menu, tearoff=0)
         menu.add_cascade(label='Settings', menu=settingsmenu)
-        settingsmenu.add_command(label='Detector Settings', command=lambda: self.edit_options(self.dsettings, "Detector Settings", self.options_callback))
-        settingsmenu.add_command(label='Detector Limits', command=lambda: self.edit_options(self.limits,"Detector Limits", self.options_callback))
-        settingsmenu.add_separator()
-        settingsmenu.add_command(label='Data Settings', command=lambda: self.edit_options(self.comp_setitngs,'Data Settings', self.options_callback))
+        for key in self.settings_keys:
+            self.make_setting(key, settingsmenu)
 
         #Creates Plot menu
         filemenu = tk.Menu(menu, tearoff=0)
@@ -362,6 +385,15 @@ class DetectGui:
     def make_help_settings(self, label, msg):
         return lambda: self.help_settings(label, msg)
 
+    def make_setting(self, key, menu):
+        if key == 'sp':
+            menu.add_separator()
+            return
+        name = self.help_labels[key]
+        setting = self.settings[key]
+        callback = self.settings_cb[key]
+        menu.add_command(label=name, command=lambda: self.edit_options(setting, name, callback))
+
     def help_settings(self, title, msg):
         t = tk.Toplevel(self.root)
         t.wm_title(title)
@@ -398,7 +430,7 @@ class DetectGui:
     # thing must have a _names_ attribute which is a map of <attr> to <name>, where
     # <name> is what the box will be labelled. These values should all be floats!
     def edit_options(self, thing, name, callback):
-        if self.dataset is None:
+        if self.dataset is None and callback is not None:
             ret = self.select_file()
             if ret is None:
                 return
@@ -448,7 +480,10 @@ class DetectGui:
                     setattr(thing, key, True if var.get() else False)
                 else:
                     setattr(thing, key, safari_input.parseVar(value.get()))
-            callback(window)
+            if callback is not None:
+                callback(window)
+            elif window is not None:
+                window.destroy()
         
         do_update = update
         def return_pressed(*args):
@@ -842,6 +877,10 @@ class DetectGui:
             self.title_text('Loading Traj')
             traj = plot_traj.Traj()
             traj.load(self.traj_file)
+
+            if self.traj_settings.show_lattice and self.safio_file is not None:
+                crystalview.plot(self.safio_file, ax, do_lims=False, do_bounds=False)
+
             traj.plot_traj_3d(fig, ax)
             self.fig = fig
             self.fig_name = self.traj_file.replace('.traj', '_traj.png')

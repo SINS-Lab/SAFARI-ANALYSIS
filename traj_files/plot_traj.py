@@ -105,8 +105,12 @@ class Traj:
         dir_z = [z[-1]-z[-2]]
 
         ax.quiver([x[-1]], [y[-1]], [z[-1]], dir_x, dir_y, dir_z, length=1.0, normalize=True)
-        ax.scatter3D(x, y, z,c='red')
+        ax.scatter3D(x, y, z, c='red')
         self.zoomed=True
+
+        min_z = np.min(z)
+        max_z = np.max(z)
+        ax.set_zlim(min_z, max_z)
         
         def onclick(event):
             if event.dblclick:
