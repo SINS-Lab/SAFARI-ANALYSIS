@@ -169,7 +169,8 @@ class DetectGui:
                               '                 this is used for Intensity vs. Energy plots,\n'+\
                               '                 Impact Plots, and Energy vs. Theta plots\n\n'+\
                               '   Select Comparison Data: Select a .dat or .txt file containing a spectrum\n'+\
-                              '                           to compare to the Energy vs. Theta plot.\n\n'+\
+                              '                           to compare to the Energy vs. Theta plot.\n'+\
+                              '                           Or a .esa file for comparing to Intensity vs. Energy Plots.\n\n'+\
                               '   Select Traj: Select a .traj file for inspecting single shot runs.'
 
         new_instance_info = '   This spawns a new window to allow analysing another dataset.\n\n'+\
