@@ -20,13 +20,13 @@ from data_files.detect_processor import SpotDetector
 from data_files.detect_processor import Spectrum
 import data_files.detect_processor as detect
 import data_files.safari_input as safari_input
+import data_files.esa_data as esa_data
 
 import spec_files.load_spec as load_spec
 import spec_files.fit_esa as esa
 from spec_files.load_spec import Spec
 
 import traj_files.plot_traj as plot_traj
-
 
 import misc.crystalview as crystalview
 
@@ -120,6 +120,18 @@ class Settings:
         self.asize = 1
         self.esize = 1
 
+class CompSettings:
+    def __init__(self):
+        self._names_ = {'scale_by_E':'Apply E Scaling: ',
+                        'normalise':"Normalise Data: "
+                        }
+        self._units_ = {'scale_by_E':'',
+                        'normalise':''
+                        }
+
+        self.scale_by_E = True
+        self.normalise = True
+
 class DetectGui:
 
     def __init__(self):
@@ -133,10 +145,14 @@ class DetectGui:
 
         self.limits = Limits()
         self.dsettings = Settings()
+        self.comp_setitngs = CompSettings()
+
+        self.safio_file = None
+        self.traj_file = None
+
+        self.compare_esa_file = None
 
         self.comparison_file = None
-        self.filename = None
-        self.traj_file = None
 
         self.fig, self.prep_fig = None, None
         self.waiting = False
@@ -211,6 +227,10 @@ class DetectGui:
                     '   The green outlined box is the area of interest defined in the input files,\n'+\
                     '   and if there is a custom surface mask, it is outlined in blue.'
 
+        comp_settings_help = '   Data Settings:\n\n'+\
+                             '   Apply E Scaling: If checked, intensity is scaled inversely with energy\n'+\
+                             '   Normalise Data: If checked, the data is normalised'
+
         self.help_text = {
             "new_instance": new_instance_info,
             "file_types": file_type_info,
@@ -224,6 +244,7 @@ class DetectGui:
 
             "dsettings": dsettings_help,
             "dlimits": dlimits_help,
+            "comp_settings": comp_settings_help,
         }
         self.help_labels = {
             "new_instance": "New Instance",
@@ -238,11 +259,12 @@ class DetectGui:
 
             "dsettings": "Detector Settings",
             "dlimits": "Detector Limits",
+            "comp_settings": "Data Settings",
         }
 
         self.files_keys = ["new_instance", "file_types"]
         self.plots_keys = ["i_vs_e_plot", "impact_plot", 'sp', "e_vs_t_plot", 'sp', "traj_energy_plot", "traj_plot", 'sp', 'crystal_plot']
-        self.settings_keys = ["dsettings", "dlimits"]
+        self.settings_keys = ["dsettings", "dlimits", 'sp', "comp_settings"]
 
         self.menus = {'File':self.files_keys, 'Settings':self.settings_keys, 'Plot':self.plots_keys}
 
@@ -281,6 +303,8 @@ class DetectGui:
         menu.add_cascade(label='Settings', menu=settingsmenu)
         settingsmenu.add_command(label='Detector Settings', command=lambda: self.edit_options(self.dsettings, "Detector Settings", self.options_callback))
         settingsmenu.add_command(label='Detector Limits', command=lambda: self.edit_options(self.limits,"Detector Limits", self.options_callback))
+        settingsmenu.add_separator()
+        settingsmenu.add_command(label='Data Settings', command=lambda: self.edit_options(self.comp_setitngs,'Data Settings', self.options_callback))
 
         #Creates Plot menu
         filemenu = tk.Menu(menu, tearoff=0)
@@ -361,7 +385,7 @@ class DetectGui:
         self.detector.pics = True
         self.dataset.clear()
         self.dataset.safio = self.detector.safio
-        self.dataset.crystal = detect.loadCrystal(self.filename)
+        self.dataset.crystal = detect.loadCrystal(self.safio_file)
         self.dataset.detector = self.detector
         if window is not None:
             window.destroy()
@@ -389,24 +413,40 @@ class DetectGui:
         x_orig = 160
 
         fields = {}
+        bools = {}
         i = 0
         for key,value in thing._names_.items():
             label = tk.Label(window, text = value, font = font_12)
             label.place(x=x_orig, y=50 + i * dh, anchor = tk.E)
 
-            entry = tk.Entry(window, font = font_12, width = 10)
-            entry.insert(0, getattr(thing,key))
-            entry.place(x=x_orig, y=50 + i * dh, anchor = tk.W)
+            attr = getattr(thing,key)
+            if isinstance(attr, bool):
+                # Make an IntVar to store button check state
+                var = tk.IntVar()
+                var.set(1 if attr else 0)
+                entry = tk.Checkbutton(window, variable=var)
+                entry.place(x=x_orig, y=50 + i * dh, anchor = tk.W)
+                fields[key] = entry
+                bools[key] = var
+            else:
+                entry = tk.Entry(window, font = font_12, width = 10)
+                entry.insert(0, attr)
+                entry.place(x=x_orig, y=50 + i * dh, anchor = tk.W)
+
+                fields[key] = entry
 
             label = tk.Label(window, text = thing._units_[key], font = font_12)
             label.place(x=x_orig + 100, y=50 + i * dh, anchor = tk.W)
 
             i = i + 1
-            fields[key] = entry
 
         def update():
             for key,value in fields.items():
-                setattr(thing, key, float(value.get()))
+                if key in bools:
+                    var = bools[key]
+                    setattr(thing, key, True if var.get() else False)
+                else:
+                    setattr(thing, key, safari_input.parseVar(value.get()))
             callback(window)
         
         do_update = update
@@ -431,17 +471,20 @@ class DetectGui:
 
     def title_text(self, text):
         if text.strip() != '':
-            self.root.title("{} {}; {}".format(self.base_name, self.filename, text))
+            self.root.title("{} {}; {}".format(self.base_name, self.safio_file, text))
         else:
-            self.root.title("{} {}".format(self.base_name, self.filename))
+            self.root.title("{} {}".format(self.base_name, self.safio_file))
 
     def select_data(self):
         global root_path
-        self.comparison_file = filedialog.askopenfilename(initialdir = root_path, title = "Select file",filetypes = (("Comparison Data Fits",".dat"),("Comparison Data Fits",".txt")))
+        self.comparison_file = filedialog.askopenfilename(initialdir = root_path, title = "Select file",filetypes = (("Comparison Data Fits",".dat"),("Comparison Data Fits",".txt"),("Comparison ESA Data",".esa")))
         test = str(self.comparison_file)
         if test == '' or test == '()':
             return None
         if test == '':
+            self.comparison_file = None
+        if self.comparison_file.endswith('esa'):
+            self.compare_esa_file = self.comparison_file
             self.comparison_file = None
         if self.last_run is not None:
             self.last_run()
@@ -453,10 +496,10 @@ class DetectGui:
         test = str(newfile)
         if test == '' or test == '()':
             return None
-        self.filename = newfile
+        self.safio_file = newfile
         root_path = os.path.dirname(newfile)
-        self.root.title("SAFARI Detect {}".format(self.filename))
-        safio = safari_input.SafariInput(self.filename)
+        self.root.title("SAFARI Detect {}".format(self.safio_file))
+        safio = safari_input.SafariInput(self.safio_file)
 
         detectorParams = safio.DTECTPAR
         self.detector = SpotDetector(45,safio.PHI0,1)
@@ -478,8 +521,8 @@ class DetectGui:
         self.dsettings.esize = safio.ESIZE
 
         self.dataset = Spectrum()
-        self.dataset.crystal = detect.loadCrystal(self.filename)
-        self.dataset.name = self.filename.replace('.input', '').replace('dbug', '')
+        self.dataset.crystal = detect.loadCrystal(self.safio_file)
+        self.dataset.name = self.safio_file.replace('.input', '').replace('dbug', '')
         self.dataset.safio = safio
         self.detector.safio = self.dataset.safio
         self.dataset.detector = self.detector
@@ -633,7 +676,7 @@ class DetectGui:
         # Wraps this for a separate thread, allowing off-thread processing, but still running all of the matplotlib stuff on the main thread
         def do_work():
             self.title_loading()
-            spec_file = self.filename.replace('.input','').replace('.dbug','')+'.spec'
+            spec_file = self.safio_file.replace('.input','').replace('.dbug','')+'.spec'
             spec = Spec(spec_file)
 
             spec.peak_finder = esa.peak_finder
@@ -705,6 +748,13 @@ class DetectGui:
             energy, intensity, scale = self.detector.spectrumE(res=self.detector.safio.ESIZE, override_fig=plots)
             # Here we update these to indicate that we have finished processing
             self.prep_fig = self.detector.prep_fig
+
+            if self.compare_esa_file is not None:
+                def new_prep():
+                    self.detector.prep_fig()
+                    self.add_esa_spec(plots)
+                self.prep_fig = new_prep
+
             self.fig_name = self.detector.fig_name
             self.fig = self.detector.fig
             self.title_selected()
@@ -825,7 +875,7 @@ class DetectGui:
         def do_work():
             self.title_loading()
             self.title_text('Processing, Please Wait')
-            crystalview.plot(self.filename, ax)
+            crystalview.plot(self.safio_file, ax)
             # Here we update these to indicate that we have finished processing
             self.prep_fig = None
             self.fig_name = None
@@ -834,6 +884,12 @@ class DetectGui:
         # Schedule this on a worker thread
         thread = threading.Thread(target=do_work)
         thread.start()
+
+    def add_esa_spec(self, plots):
+        fig, ax = plots
+        E, I = esa_data.load_esa(self.compare_esa_file, scale_by_E=self.comp_setitngs.scale_by_E, normalise=self.comp_setitngs.normalise)
+        E = E / self.detector.safio.E0
+        ax.plot(E, I, label="Data")
 
 def start():
     if len(instances) == 0:
