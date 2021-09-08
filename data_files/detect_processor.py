@@ -324,7 +324,8 @@ class Detector:
         #things default nicely to py on windows, the linux machine like python3
         if platform.system() != 'Linux':
             args = args.replace('python3', 'py')
-        new_input = self.safio.fileIn.replace('.input', '_ss.input')
+        
+        new_input = self.safio.fileIn.replace(self.safio.file_type, '_ss.input')
 
         if self.safio.load_crystal:
             old_crys = new_input.replace('_ss.input', '.crys_in')
