@@ -27,6 +27,9 @@ from spec_files.load_spec import Spec
 
 import traj_files.plot_traj as plot_traj
 
+
+import misc.crystalview as crystalview
+
 import threading
 
 global root_path
@@ -203,6 +206,11 @@ class DetectGui:
                     '   These show the physical trajectory for the projectile in the single shot run\n\n'+\
                     '   Single Shot runs can be generated via the Impact Plots'
 
+        crys_info = '   Crystal Plots:\n\n'+\
+                    '   These show the locations of the lattice sites, as well as the active area\n'+\
+                    '   The green outlined box is the area of interest defined in the input files,\n'+\
+                    '   and if there is a custom surface mask, it is outlined in blue.'
+
         self.help_text = {
             "new_instance": new_instance_info,
             "file_types": file_type_info,
@@ -212,6 +220,7 @@ class DetectGui:
             "e_vs_t_plot": e_vs_t_info,
             "traj_energy_plot": traj_energy_info,
             "traj_plot": traj_info,
+            "crystal_plot": crys_info,
 
             "dsettings": dsettings_help,
             "dlimits": dlimits_help,
@@ -220,18 +229,19 @@ class DetectGui:
             "new_instance": "New Instance",
             "file_types": "Select *",
 
-            "i_vs_e_plot": "Intensity vs. Energy Plots",
-            "impact_plot": "Impact Plots",
-            "e_vs_t_plot": "Energy vs. Theta Plots",
-            "traj_energy_plot": "Trajectory Energy Plots",
-            "traj_plot": "Trajectory Plots",
+            "i_vs_e_plot": "Intensity vs. Energy Plot",
+            "impact_plot": "Impact Plot",
+            "e_vs_t_plot": "Energy vs. Theta Plot",
+            "traj_energy_plot": "Trajectory Energy Plot",
+            "traj_plot": "Trajectory Plot",
+            "crystal_plot": "Crystal Plot",
 
             "dsettings": "Detector Settings",
             "dlimits": "Detector Limits",
         }
 
         self.files_keys = ["new_instance", "file_types"]
-        self.plots_keys = ["i_vs_e_plot", "impact_plot", "e_vs_t_plot", "traj_energy_plot", "traj_plot"]
+        self.plots_keys = ["i_vs_e_plot", "impact_plot", 'sp', "e_vs_t_plot", 'sp', "traj_energy_plot", "traj_plot", 'sp', 'crystal_plot']
         self.settings_keys = ["dsettings", "dlimits"]
 
         self.menus = {'File':self.files_keys, 'Settings':self.settings_keys, 'Plot':self.plots_keys}
@@ -283,6 +293,8 @@ class DetectGui:
         filemenu.add_separator()
         filemenu.add_command(label='Trajectory Energy Plot', command=lambda: self.traj_energy_plot())
         filemenu.add_command(label='Trajectory Plot', command=lambda: self.traj_plot())
+        filemenu.add_separator()
+        filemenu.add_command(label='Crystal Plot', command=lambda: self.crystal_plot())
 
         #Creates Help menu
         helpmenu = tk.Menu(menu, tearoff=0)
@@ -313,6 +325,9 @@ class DetectGui:
     def make_help_submenu(self, keys, helpmenu):
         submenu = tk.Menu(helpmenu, tearoff=0)
         for key in keys:
+            if key == 'sp':
+                submenu.add_separator()
+                continue
             label = self.help_labels[key]
             msg = self.help_text[key]
             submenu.add_command(label=label, command=self.make_help_settings(label, msg))
@@ -768,6 +783,9 @@ class DetectGui:
         self.waiting = True
         fig = plt.figure()
         ax = plt.axes(projection='3d')
+        ax.set_xlabel('X (Å)')
+        ax.set_ylabel('Y (Å)')
+        ax.set_zlabel('Z (Å)')
 
         def do_work():
             self.title_text('Loading Traj')
@@ -778,6 +796,41 @@ class DetectGui:
             self.fig_name = self.traj_file.replace('.traj', '_traj.png')
             self.title_text('Trajectory Plot')
 
+        # Schedule this on a worker thread
+        thread = threading.Thread(target=do_work)
+        thread.start()
+
+    def crystal_plot(self):
+        # Select a file if we don't have one already.
+        if self.dataset is None:
+            ret = self.select_file()
+            if ret is None:
+                # If no file to select, just return early
+                return
+            else:
+                self.dataset = ret
+
+        self.last_run = self.crystal_plot
+
+        self.fig = None
+        self.waiting = True
+
+        fig = plt.figure()
+        ax = plt.axes(projection='3d')
+        ax.set_xlabel('X (Å)')
+        ax.set_ylabel('Y (Å)')
+        ax.set_zlabel('Z (Å)')
+
+        # Wraps this for a separate thread, allowing off-thread processing, but still running all of the matplotlib stuff on the main thread
+        def do_work():
+            self.title_loading()
+            self.title_text('Processing, Please Wait')
+            crystalview.plot(self.filename, ax)
+            # Here we update these to indicate that we have finished processing
+            self.prep_fig = None
+            self.fig_name = None
+            self.fig = fig
+            self.title_selected()
         # Schedule this on a worker thread
         thread = threading.Thread(target=do_work)
         thread.start()
