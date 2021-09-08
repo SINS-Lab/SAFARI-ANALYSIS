@@ -60,7 +60,7 @@ def isFloat(s):
 
 class SafariInput:
 
-    def __init__(self, fileIn, save_mod=True):
+    def __init__(self, fileIn, save_mod=False):
         self.fileIn = fileIn
 
         self.file_type = ".input"
