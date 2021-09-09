@@ -7,12 +7,14 @@ import scipy.constants as consts   # Converting safari-time to seconds
 
 class Traj:
 
+    # Returns the SAFARI time unit in seconds
     def time_unit(self):
         amu = consts.physical_constants["atomic mass unit-kilogram relationship"][0]
         eV = consts.physical_constants["atomic unit of charge"][0]
         A = consts.angstrom
         return A*math.sqrt(amu/eV)
 
+    # Loads from the given .traj file
     def load(self, filename):
 
         #Coordinates
@@ -64,8 +66,7 @@ class Traj:
 
             self.near.append(int(args[11]))
             self.dt.append(float(args[12]))
-            #self.dr_max.append(float(args[13])) We dont use this
-            #self.dV.append(float(args[14]))
+            
         self.x = np.array(self.x)
         self.y = np.array(self.y)
         self.z = np.array(self.z)
@@ -82,6 +83,7 @@ class Traj:
         self.V = np.array(self.V)
         self.E = np.array(self.E)
 
+    # Plots the various energies vs time
     def plot_energies(self, ax):
         ax.plot(self.t, self.V, label="Interaction Potential")
         ax.plot(self.t, self.T, label="Kinetic Energy")
@@ -91,12 +93,14 @@ class Traj:
         ax.set_ylabel('Energy (eV)')
         ax.legend()
 
+    # Adds just a plot of Z position vs time
     def plot_traj_1d(self, ax, axis='z'):
         ax.plot(self.t, self.z)
 
         ax.set_xlabel('Time (fs)')
         ax.set_ylabel('Z Position (Å)')
 
+    # Adds to the given axis, via scatter3D plot
     def plot_traj_3d(self, fig, ax):
         x,y,z = self.x, self.y, self.z
 
@@ -112,6 +116,7 @@ class Traj:
         max_z = np.max(z)
         ax.set_zlim(min_z, max_z)
         
+        # This will rescale the plot when double clicked
         def onclick(event):
             if event.dblclick:
                 min_x = np.min(x)
@@ -123,6 +128,7 @@ class Traj:
                 dx = np.max(x) - np.min(x)
                 dy = np.max(y) - np.min(y)
 
+                # If we are zoomed, instead rescale based on largest
                 if self.zoomed:
                     if(dy < dx):
                         mean_y = (min_y + max_y) / 2
@@ -133,6 +139,7 @@ class Traj:
                         min_x = mean_x - dy/2
                         max_x = mean_x + dy/2
                     self.zoomed = False
+                # Otherwise do nothing, as we are already scaled correctly
                 else:
                     self.zoomed = True
                 ax.set_xlim(min_x, max_x)
@@ -140,6 +147,7 @@ class Traj:
 
             fig.canvas.draw()
 
+        # Apply the event to the canvas
         fig.canvas.mpl_connect('button_press_event', onclick)
 
 if __name__ == "__main__" :
