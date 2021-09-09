@@ -391,6 +391,16 @@ class DetectGui:
     def make_help_settings(self, label, msg):
         return lambda: self.help_settings(label, msg)
 
+    # Actually makes the setting option
+    def help_settings(self, title, msg):
+        t = tk.Toplevel(self.root)
+        t.wm_title(title)
+        l = tk.Text(t, font = font_14)
+        l.insert('end',msg)
+        l.config(state='disabled')
+        l.pack(side="top", fill="both", expand=True, padx=100, pady=100)
+
+    # Adds settings options to the settings menu, also adds approprate separators
     def make_setting(self, key, menu):
         if key == 'sp':
             menu.add_separator()
@@ -399,14 +409,6 @@ class DetectGui:
         setting = self.settings[key]
         callback = self.settings_cb[key]
         menu.add_command(label=name, command=lambda: self.edit_options(setting, name, callback))
-
-    def help_settings(self, title, msg):
-        t = tk.Toplevel(self.root)
-        t.wm_title(title)
-        l = tk.Text(t, font = font_14)
-        l.insert('end',msg)
-        l.config(state='disabled')
-        l.pack(side="top", fill="both", expand=True, padx=100, pady=100)
 
     # Exits the application
     def exit_detect(self):
@@ -511,12 +513,16 @@ class DetectGui:
     def title_loading(self):
         self.title_text('Loading, Please Wait')
 
+    # Updates the title of the window to include the given text
     def title_text(self, text):
         if text.strip() != '':
             self.root.title("{} {}; {}".format(self.base_name, self.safio_file, text))
         else:
             self.root.title("{} {}".format(self.base_name, self.safio_file))
 
+    # Selects a file for comparison to the plots.
+    # the .dat and .txt files are to contain an e-theta loop from data to compare to spec files
+    # the .esa files are for comparing to energy vs intensity logs.
     def select_data(self):
         global root_path
         self.comparison_file = filedialog.askopenfilename(initialdir = root_path, title = "Select file",filetypes = (("Comparison Data Fits",".dat"),("Comparison Data Fits",".txt"),("Comparison ESA Data",".esa")))
@@ -663,6 +669,7 @@ class DetectGui:
                 self.single_shots.pop(key)
         self.root.after(500, self.check_single_shot)
 
+    # This records that the run has started, so it can be watched for updating application title
     def register_single_shot(self, vmd_file):
         self.single_shots[vmd_file] = 0
 
@@ -840,6 +847,7 @@ class DetectGui:
         thread = threading.Thread(target=do_work)
         thread.start()
 
+    # Produces a plot of energy as a function of time for the projectile during a single shot run
     def traj_energy_plot(self):
         if self.traj_file is None:
             opened = self.select_traj_file()
@@ -863,6 +871,7 @@ class DetectGui:
         thread = threading.Thread(target=do_work)
         thread.start()
 
+    # Produces a 3d trajectory plot for the particle
     def traj_plot(self):
         if self.traj_file is None:
             opened = self.select_traj_file(open_traj=False)
@@ -896,6 +905,8 @@ class DetectGui:
         thread = threading.Thread(target=do_work)
         thread.start()
 
+    # Produces a 3d plot of the crystal used for scattering, also includes indications of the overlay of the 
+    # active area of the surface, as well as the possible surface mask
     def crystal_plot(self):
         # Select a file if we don't have one already.
         if self.dataset is None:
@@ -931,6 +942,7 @@ class DetectGui:
         thread = threading.Thread(target=do_work)
         thread.start()
 
+    # Adds the loaded .esa file to the given plots, used for comparing Intensity vs. Energy plots
     def add_esa_spec(self, plots):
         fig, ax = plots
         E, I = esa_data.load_esa(self.compare_esa_file, scale_by_E=self.comp_setitngs.scale_by_E, normalise=self.comp_setitngs.normalise)
