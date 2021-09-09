@@ -74,22 +74,22 @@ def spawn_gui():
 class Limits:
     def __init__(self):
         self._names_ = {
-                        't_min':"Min Theta: ",
-                        't_max':"Max Theta: ",
-                        'p_min':"Min Phi: ",
-                        'p_max':"Max Phi: ",
-                        'e_min':"Min Energy: ",
-                        'e_max':"Max Energy: "
-                        }
+            't_min':"Min Theta: ",
+            't_max':"Max Theta: ",
+            'p_min':"Min Phi: ",
+            'p_max':"Max Phi: ",
+            'e_min':"Min Energy: ",
+            'e_max':"Max Energy: "
+        }
 
         self._units_ = {
-                        't_min':"Degrees",
-                        't_max':"Degrees",
-                        'p_min':"Degrees",
-                        'p_max':"Degrees",
-                        'e_min':"eV",
-                        'e_max':"eV"
-                       }
+            't_min':"Degrees",
+            't_max':"Degrees",
+            'p_min':"Degrees",
+            'p_max':"Degrees",
+            'e_min':"eV",
+            'e_max':"eV"
+        }
 
         self.p_min = 0
         self.p_max = 0
@@ -104,17 +104,18 @@ class Limits:
 # Detector settings object
 class Settings:
     def __init__(self):
-        self._names_ = {'theta':'Theta: ',
-                        'phi':"Phi: ",
-                        'asize':"Angular Size: ",
-                        'esize':"Energy Res: "
-                        }
-        self._units_ = {'theta':'Degrees',
-                        'phi':"Degrees",
-                        'asize':"Degrees",
-                        'esize':"eV"
-                        }
-
+        self._names_ = {
+            'theta':'Theta: ',
+            'phi':"Phi: ",
+            'asize':"Angular Size: ",
+            'esize':"Energy Res: "
+        }
+        self._units_ = {
+            'theta':'Degrees',
+            'phi':"Degrees",
+            'asize':"Degrees",
+            'esize':"eV"
+        }
         self.theta = 45
         self.phi = 0
         self.asize = 1
@@ -122,23 +123,25 @@ class Settings:
 
 class CompSettings:
     def __init__(self):
-        self._names_ = {'scale_by_E':'Apply E Scaling: ',
-                        'normalise':"Normalise Data: "
-                        }
-        self._units_ = {'scale_by_E':'',
-                        'normalise':''
-                        }
-
+        self._names_ = {
+            'scale_by_E':'Apply E Scaling: ',
+            'normalise':"Normalise Data: "
+        }
+        self._units_ = {
+            'scale_by_E':'',
+            'normalise':''
+        }
         self.scale_by_E = True
         self.normalise = True
 
 class TrajSettings:
     def __init__(self):
-        self._names_ = {'show_lattice':'Show Lattice: ',
-                        }
-        self._units_ = {'show_lattice':''
-                        }
-
+        self._names_ = {
+            'show_lattice':'Show Lattice: ',
+        }
+        self._units_ = {
+            'show_lattice':''
+        }
         self.show_lattice = False
 
 class DetectGui:
@@ -219,6 +222,13 @@ class DetectGui:
                               '   Clicking Update will apply the changes and attempt to re-plot if applicable\n'+\
                               '   Clicking Cancel will close the window without applying changes'
 
+        comp_settings_help = '   Data Settings:\n\n'+\
+                             '   Apply E Scaling: If checked, intensity is scaled inversely with energy\n'+\
+                             '   Normalise Data: If checked, the data is normalised'
+
+        traj_settings_help = '   Traj Settings:\n\n'+\
+                             '   Show Lattice: If checked, the lattice will be shown as well'
+
         i_vs_e_info = '   Intensity vs. Energy Plots:\n\n'+\
                       '   Use the .data file, loads from Select File option'
 
@@ -251,10 +261,6 @@ class DetectGui:
                     '   The green outlined box is the area of interest defined in the input files,\n'+\
                     '   and if there is a custom surface mask, it is outlined in blue.'
 
-        comp_settings_help = '   Data Settings:\n\n'+\
-                             '   Apply E Scaling: If checked, intensity is scaled inversely with energy\n'+\
-                             '   Normalise Data: If checked, the data is normalised'
-
         self.help_text = {
             "new_instance": new_instance_info,
             "file_types": file_type_info,
@@ -268,7 +274,7 @@ class DetectGui:
 
             "dsettings": dsettings_help,
             "dlimits": dlimits_help,
-            "traj_settings": "Traj Settings",
+            "traj_settings": traj_settings_help,
             "comp_settings": comp_settings_help,
         }
         self.help_labels = {
