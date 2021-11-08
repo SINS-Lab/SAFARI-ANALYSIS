@@ -32,6 +32,25 @@ class Menu:
         self._helps= {}
         self._label = ''
 
+    def is_same(self, other):
+        return other._label == self._label
+    
+    def merge_in(self, other):
+        if not self.is_same(other):
+            return other
+
+        self._opts_order.append('sep')
+        self._opts_order.extend(other._opts_order)
+
+        for key, val in other._options.items():
+            self._options[key] = val
+        for key, val in other._labels.items():
+            self._labels[key] = val
+        for key, val in other._helps.items():
+            self._helps[key] = val
+
+        return self
+
 class Module:
 
     def __init__(self, root):
@@ -58,14 +77,14 @@ class Module:
     def get_settings(self):
         # Return an array or collection of settings here
         # Module can have more than 1 set of settings.
-        return [settings]
+        return [self.settings]
 
     def get_menus(self):
 
         # This returns what menus (except for settings) should be made for this
         # module. This example adds a "Misc" dropdown, with 3 values, and 1 separator
 
-        def run_misc()
+        def run_misc():
             # Dummy function for the menu example
             print("misc run")
         

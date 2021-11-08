@@ -8,6 +8,7 @@ import platform     # Linux vs Windows check
 import data_files.safari_input as safari_input
 
 import detect_module
+from misc.module import Menu
 
 if platform.system() == 'Windows':
     font_12 = ('Times New Roman', 12)
@@ -37,39 +38,10 @@ def spawn_gui_proc():
 def spawn_gui():
     spawn_gui_proc()
 
-class Menu:
-    def __init__(self):
-        self._opts_order = []
-        self._help_order = self._opts_order
-        self._options = {}
-        self._labels = {}
-        self._helps = {}
-        self._label = ''
-
-    def is_same(self, other):
-        return other._label == self._label
-    
-
-    def merge_in(self, other):
-        if not self.is_same(other):
-            return other
-
-        self._opts_order.append('sep')
-        self._opts_order.extend(other._opts_order)
-
-        for key, val in other._options.items():
-            self._options[key] = val
-        for key, val in other._labels.items():
-            self._labels[key] = val
-        for key, val in other._helps.items():
-            self._helps[key] = val
-
-        return self
-
 class DetectGui:
 
     def __init__(self):
-        self._modules = [detect_module.Module(self)]
+        self._modules = [detect_module.DetectModule(self)]
         self.base_name = "SAFARI Detect"
 
         # Three initial menus

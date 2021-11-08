@@ -28,6 +28,9 @@ import traj_files.plot_traj as plot_traj
 
 import misc.crystalview as crystalview
 
+from misc.module import Menu
+from misc.module import Module
+
 import threading
 
 global root_path
@@ -104,7 +107,7 @@ class Limits:
         # the settings have been changed via a gui interaction
         self._callback = None
 
-class Settings:
+class DetectSettings:
     def __init__(self):
         # Names of the values, for showing in the options box
         self._names_ = {
@@ -194,21 +197,11 @@ class TrajSettings:
         # the settings have been changed via a gui interaction
         self._callback = None
 
-class Menu:
-    def __init__(self):
-        self._opts_order = []
-        self._help_order = self._opts_order
-        self._options = {}
-        self._labels = {}
-        self._helps = {}
-        self._label = ''
-
-class Module:
+class DetectModule(Module):
 
     def __init__(self, root):
-
+        Module.__init__(self, root)
         # This is the gui instance that owns this module.
-        self.root = root
         self.base_name = "SAFARI Detect"
         
         self.last_run = None
@@ -218,7 +211,7 @@ class Module:
         self.dataset = None
         self.detector = SpotDetector(45,0,1)
 
-        self.dsettings = Settings()
+        self.dsettings = DetectSettings()
         self.limits = Limits()
         self.comp_setitngs = CompSettings()
         self.traj_settings = TrajSettings()
@@ -237,9 +230,6 @@ class Module:
         self.waiting = False
 
         self.single_shots = {}
-
-    def get_tk(self):
-        return self.root.root
 
     def on_start(self):
         # This is called when the module is first added, after making the settings,
