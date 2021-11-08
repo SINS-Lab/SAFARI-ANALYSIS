@@ -93,6 +93,17 @@ class Traj:
         ax.set_ylabel('Energy (eV)')
         ax.legend()
 
+    # Plots the various derivatives of energies vs time
+    def plot_power(self, ax):
+        # V = np.gradient(self.V, self.t)
+        # T = np.gradient(self.T, self.t)
+        E = -np.gradient(self.E, self.t)
+        ax.plot(self.t, E, label="Projectile Power Transfer")
+
+        ax.set_xlabel('Time (fs)')
+        ax.set_ylabel('Power (eV/fs)')
+        ax.legend()
+
     # Adds just a plot of Z position vs time
     def plot_traj_1d(self, ax, axis='z'):
         ax.plot(self.t, self.z)

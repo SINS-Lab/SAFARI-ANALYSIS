@@ -292,6 +292,7 @@ class DetectModule(Module):
         _plot_menu._options["e_vs_t_plot"] = lambda: self.e_vs_t_plot(fit=False)
         _plot_menu._options["e_vs_t_plot_fit"] = lambda: self.e_vs_t_plot(fit=True)
         _plot_menu._options["traj_energy_plot"] = lambda: self.traj_energy_plot()
+        _plot_menu._options["traj_power_plot"] = lambda: self.traj_power_plot()
         _plot_menu._options["traj_plot"] = lambda: self.traj_plot()
         _plot_menu._options["crystal_plot"] = lambda: self.crystal_plot()
 
@@ -302,6 +303,7 @@ class DetectModule(Module):
         _plot_menu._opts_order.append("e_vs_t_plot_fit")
         _plot_menu._opts_order.append("sep")
         _plot_menu._opts_order.append("traj_energy_plot")
+        _plot_menu._opts_order.append("traj_power_plot")
         _plot_menu._opts_order.append("traj_plot")
         _plot_menu._opts_order.append("sep")
         _plot_menu._opts_order.append("crystal_plot")
@@ -353,6 +355,7 @@ class DetectModule(Module):
         _plot_menu._labels["e_vs_t_plot"] = "Energy vs. Theta Plot"
         _plot_menu._labels["e_vs_t_plot_fit"] = "Energy vs. Theta Plot (Fit)"
         _plot_menu._labels["traj_energy_plot"] = "Trajectory Energy Plot"
+        _plot_menu._labels["traj_power_plot"] = "Trajectory Power Plot"
         _plot_menu._labels["traj_plot"] = "Trajectory Plot"
         _plot_menu._labels["crystal_plot"] = "Crystal Plot"
 
@@ -455,6 +458,8 @@ class DetectModule(Module):
         if open_traj:
             if self.last_run == self.traj_plot:
                 self.traj_plot()
+            elif self.last_run != None:
+                self.last_run()
             else:
                 self.traj_energy_plot()
         return self.traj_file
@@ -710,7 +715,7 @@ class DetectModule(Module):
     # Produces a plot of energy as a function of time for the projectile during a single shot run
     def traj_energy_plot(self):
         if self.traj_file is None:
-            opened = self.select_traj_file()
+            self.select_traj_file()
             return
 
         self.last_run = self.traj_energy_plot
@@ -727,6 +732,29 @@ class DetectModule(Module):
             self.fig = fig
             self.fig_name = self.traj_file.replace('.traj', '_traj_energy.png')
             self.title_text('Trajectory Energies')
+        # Schedule this on a worker thread
+        thread = threading.Thread(target=do_work)
+        thread.start()
+
+    # Produces a plot of power as a function of time for the projectile during a single shot run
+    def traj_power_plot(self):
+        self.last_run = self.traj_power_plot
+        if self.traj_file is None:
+            self.select_traj_file()
+            return
+
+        self.fig = None
+        self.waiting = True
+        fig, ax = plt.subplots(figsize=(12.0, 9.0))
+
+        def do_work():
+            self.title_text('Loading Traj')
+            traj = plot_traj.Traj()
+            traj.load(self.traj_file)
+            traj.plot_power(ax)
+            self.fig = fig
+            self.fig_name = self.traj_file.replace('.traj', '_traj_power.png')
+            self.title_text('Trajectory Power')
         # Schedule this on a worker thread
         thread = threading.Thread(target=do_work)
         thread.start()
